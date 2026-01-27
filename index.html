@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Q版三國策略塔防</title>
+    <style>
+        :root {
+            --primary-color: #f39c12; /* 三國金 */
+            --secondary-color: #e74c3c; /* 戰旗紅 */
+            --bg-color: #fcf3cf; /* 宣紙/羊皮紙色 */
+            --text-color: #2c3e50;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: "Microsoft JhengHei", "Heiti TC", sans-serif;
+            background-color: #2c3e50;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        #game-container {
+            position: relative;
+            width: 960px;
+            height: 640px;
+            background-color: var(--bg-color);
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            border-radius: 10px;
+            overflow: hidden;
+            display: none; /* 登入後顯示 */
+        }
+
+        /* Canvas */
+        canvas {
+            display: block;
+            background: #a9dfbf; /* 草地綠 */
+        }
+
+        /* UI Overlay */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .hud-panel {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.9);
+            border: 2px solid var(--primary-color);
+            border-radius: 8px;
+            padding: 10px;
+            pointer-events: auto;
+            color: var(--text-color);
+            font-weight: bold;
+        }
+
+        /* Top Bar */
+        #top-bar {
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            height: 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #fff;
+        }
+
+        /* Bottom Bar (Tower Selection) */
+        #bottom-bar {
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            padding: 10px 20px;
+        }
+
+        .tower-btn {
+            width: 70px;
+            height: 80px;
+            border: 3px solid #ccc;
+            border-radius: 10px;
+            background: #fff;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: 0.2s;
+            font-size: 12px;
+            position: relative;
+        }
+
+        .tower-btn.selected {
+            border-color: var(--secondary-color);
+            background: #fadbd8;
+            transform: translateY(-5px);
+        }
+
+        .tower-btn:hover {
+            background: #fdf2e9;
+        }
+        
+        .tower-icon {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .price-tag {
+            background: gold;
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-size: 10px;
+            margin-top: 2px;
+        }
+
+        /* Login Screen */
+        #login-screen, #result-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(44, 62, 80, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            z-index: 100;
+        }
+
+        .panel-box {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            color: var(--text-color);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border: 4px solid var(--primary-color);
+            max-width: 400px;
+            width: 90%;
+        }
+
+        input {
+            padding: 10px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            width: 80%;
+            margin: 15px 0;
+        }
+
+        button.start-btn {
+            background: var(--secondary-color);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 18px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+
+        button.start-btn:hover {
+            background: #c0392b;
+            transform: scale(1.05);
+        }
+
+        h1 { color: var(--secondary-color); margin-bottom: 10px; }
+        h2 { margin-top: 0; }
+        
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+            border-bottom: 1px dashed #ccc;
+            padding-bottom: 5px;
+        }
+
+        /* Tooltip style for messages */
+        #message-area {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 30px;
+            font-size: 20px;
+            display: none;
+            pointer-events: none;
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- 1. 登入畫面 -->
+    <div id="login-screen">
+        <div class="panel-box">
+            <h1>🛡️ Q版三國塔防</h1>
+            <p>請輸入你的大名，準備守護城池！</p>
+            <input type="text" id="player-name" placeholder="請輸入姓名或暱稱" maxlength="10">
+            <br>
+            <button class="start-btn" onclick="Game.initLogin()">開始挑戰</button>
+        </div>
+    </div>
+
+    <!-- 2. 遊戲主畫面 -->
+    <div id="game-container">
+        <canvas id="gameCanvas" width="960" height="640"></canvas>
+        
+        <div id="ui-layer">
+            <!-- 頂部資訊列 -->
+            <div id="top-bar" class="hud-panel">
+                <span id="display-name">將軍: 未登入</span>
+                <span>🏆 分數: <span id="score">0</span></span>
+                <span>💰 軍費: <span id="gold">0</span></span>
+                <span>❤️ 城防: <span id="lives">0</span></span>
+                <span>🚩 關卡: <span id="level">1</span>/3</span>
+                <span id="wave-info">波次: 1</span>
+            </div>
+
+            <!-- 中央訊息區 -->
+            <div id="message-area">關卡開始！</div>
+
+            <!-- 底部塔選擇區 -->
+            <div id="bottom-bar" class="hud-panel">
+                <div class="tower-btn" onclick="Game.selectTower('archer')" id="btn-archer">
+                    <div class="tower-icon">🏹</div>
+                    <div>弓兵塔</div>
+                    <div class="price-tag">$100</div>
+                </div>
+                <div class="tower-btn" onclick="Game.selectTower('spear')" id="btn-spear">
+                    <div class="tower-icon">🔱</div>
+                    <div>槍兵塔</div>
+                    <div class="price-tag">$150</div>
+                </div>
+                <div class="tower-btn" onclick="Game.selectTower('mage')" id="btn-mage">
+                    <div class="tower-icon">🔮</div>
+                    <div>策士塔</div>
+                    <div class="price-tag">$250</div>
+                </div>
+                <div class="tower-btn" onclick="Game.selectTower('cannon')" id="btn-cannon">
+                    <div class="tower-icon">💣</div>
+                    <div>砲車塔</div>
+                    <div class="price-tag">$350</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. 結算畫面 -->
+    <div id="result-screen" style="display: none;">
+        <div class="panel-box">
+            <h1>戰役結束</h1>
+            <h2 id="end-title">恭喜通關</h2>
+            <div class="stat-row"><span>總得分：</span><span id="final-score">0</span></div>
+            <div class="stat-row"><span>第一關：</span><span id="score-l1">0</span></div>
+            <div class="stat-row"><span>第二關：</span><span id="score-l2">0</span></div>
+            <div class="stat-row"><span>第三關：</span><span id="score-l3">0</span></div>
+            <div class="stat-row"><span>耗時：</span><span id="final-time">0s</span></div>
+            <p style="font-size: 12px; color: #888; margin-top: 10px;">資料正傳送至軍機處(雲端)...</p>
+            <button class="start-btn" onclick="location.reload()">再玩一次</button>
+        </div>
+    </div>
+
+<script>
+/**
+ * 遊戲設定與全域變數
+ */
+const CONFIG = {
+    gridSize: 64, // 每個格子的像素大小
+    width: 15,    // 橫向格子數 (960/64)
+    height: 10,   // 縱向格子數 (640/64)
+    // Google Apps Script Web App URL (請使用者替換成自己的)
+    gasUrl: 'https://script.google.com/macros/s/AKfycbwqZFv8Jzk4A1ERYbzljRudebPBTlBn4OcSsFWfWBGLTIKGSMDEd3focinsGovte4c9/exec' 
+};
+
+// 塔的數據設定
+const TOWER_TYPES = {
+    archer: { name: '弓兵', cost: 100, range: 2.5, damage: 15, cooldown: 30, color: '#27ae60', type: 'single', projectileSpeed: 10 },
+    spear:  { name: '槍兵', cost: 150, range: 2, damage: 25, cooldown: 40, color: '#2980b9', type: 'single', projectileSpeed: 12 },
+    mage:   { name: '策士', cost: 250, range: 3.5, damage: 10, cooldown: 50, color: '#8e44ad', type: 'aoe_slow', projectileSpeed: 8 },
+    cannon: { name: '砲車', cost: 350, range: 4, damage: 50, cooldown: 90, color: '#c0392b', type: 'aoe_damage', projectileSpeed: 6 }
+};
+
+// 敵人數據設定
+const ENEMY_TYPES = {
+    normal: { hp: 40, speed: 2, reward: 15, color: '#e67e22', radius: 15 },
+    heavy:  { hp: 120, speed: 1, reward: 30, color: '#7f8c8d', radius: 18 },
+    boss:   { hp: 600, speed: 0.8, reward: 200, color: '#c0392b', radius: 25 }
+};
+
+// 關卡波次設定 (簡單版)
+const LEVELS = [
+    {   // Level 1
+        startGold: 350,
+        waves: [
+            { count: 5, type: 'normal', interval: 80 },
+            { count: 10, type: 'normal', interval: 60 }
+        ]
+    },
+    {   // Level 2
+        startGold: 400,
+        waves: [
+            { count: 10, type: 'normal', interval: 50 },
+            { count: 5, type: 'heavy', interval: 90 },
+            { count: 5, type: 'normal', interval: 40 }
+        ]
+    },
+    {   // Level 3
+        startGold: 500,
+        waves: [
+            { count: 8, type: 'heavy', interval: 80 },
+            { count: 15, type: 'normal', interval: 30 },
+            { count: 1, type: 'boss', interval: 100 }
+        ]
+    }
+];
+
+// 地圖路徑點 (以格子座標表示: x, y)
+// 這是一個 S 型路線
+const PATH_POINTS = [
+    {x: 0, y: 2}, {x: 3, y: 2}, {x: 3, y: 7}, 
+    {x: 8, y: 7}, {x: 8, y: 2}, {x: 12, y: 2}, 
+    {x: 12, y: 6}, {x: 14, y: 6}
+];
+
+/**
+ * 遊戲核心類別
+ */
+class GameEngine {
+    constructor() {
+        this.canvas = document.getElementById('gameCanvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.player = {
+            name: '',
+            id: '',
+            score: 0,
+            levelScores: [0, 0, 0],
+            startTime: 0
+        };
+        
+        this.gameState = {
+            level: 0, // 0-indexed (0 = Level 1)
+            gold: 0,
+            lives: 20,
+            waveIndex: 0,
+            enemiesToSpawn: 0,
+            spawnTimer: 0,
+            currentEnemyType: null,
+            isWaveActive: false,
+            isGameOver: false,
+            isPlaying: false
+        };
+
+        this.entities = {
+            towers: [],
+            enemies: [],
+            projectiles: [],
+            particles: [] // 爆炸效果
+        };
+
+        this.selectedTowerType = null;
+        this.lastTime = 0;
+        
+        // 綁定點擊事件
+        this.canvas.addEventListener('click', (e) => this.handleCanvasClick(e));
+        
+        // 將路徑點轉換為像素座標
+        this.pathPixels = PATH_POINTS.map(p => ({
+            x: p.x * CONFIG.gridSize + CONFIG.gridSize/2,
+            y: p.y * CONFIG.gridSize + CONFIG.gridSize/2
+        }));
+    }
+
+    initLogin() {
+        const nameInput = document.getElementById('player-name');
+        const name = nameInput.value.trim();
+        if (!name) {
+            alert("請輸入大名！");
+            return;
+        }
+
+        this.player.name = name;
+        this.player.id = 'ID_' + Date.now().toString().slice(-6); // 簡易ID
+        this.player.startTime = Date.now();
+
+        document.getElementById('display-name').textContent = `將軍: ${name}`;
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('game-container').style.display = 'block';
+
+        this.startLevel(0);
+        this.gameLoop(0);
+    }
+
+    startLevel(levelIndex) {
+        if (levelIndex >= LEVELS.length) {
+            this.endGame(true); // 全通關
+            return;
+        }
+
+        this.gameState.level = levelIndex;
+        this.gameState.gold = LEVELS[levelIndex].startGold;
+        this.gameState.lives = 20; // 每關重置生命或累計看需求，這裡設定重置
+        this.gameState.waveIndex = 0;
+        this.gameState.isWaveActive = true;
+        
+        // 清空實體
+        this.entities.towers = [];
+        this.entities.enemies = [];
+        this.entities.projectiles = [];
+        this.entities.particles = [];
+
+        this.startNextWave();
+        this.updateUI();
+        this.showMessage(`第 ${levelIndex + 1} 關 開始！`);
+    }
+
+    startNextWave() {
+        const levelData = LEVELS[this.gameState.level];
+        if (this.gameState.waveIndex >= levelData.waves.length) {
+            // 所有波次結束，檢查是否還有敵人
+            if (this.entities.enemies.length === 0) {
+                // 關卡完成
+                this.calculateLevelScore();
+                setTimeout(() => this.startLevel(this.gameState.level + 1), 2000);
+            }
+            return;
+        }
+
+        const waveData = levelData.waves[this.gameState.waveIndex];
+        this.gameState.enemiesToSpawn = waveData.count;
+        this.gameState.currentEnemyType = waveData.type;
+        this.gameState.spawnInterval = waveData.interval;
+        this.gameState.spawnTimer = 0;
+        
+        document.getElementById('wave-info').textContent = `波次: ${this.gameState.waveIndex + 1}/${levelData.waves.length}`;
+    }
+
+    calculateLevelScore() {
+        // 分數 = 剩餘生命 * 100 + 擊殺分 (已累加)
+        const bonus = this.gameState.lives * 50;
+        this.player.score += bonus;
+        this.player.levelScores[this.gameState.level] = this.player.score - (this.gameState.level > 0 ? this.player.levelScores[this.gameState.level-1] : 0);
+        this.showMessage(`關卡完成！獎勵 ${bonus} 分`);
+    }
+
+    selectTower(type) {
+        // 切換選取狀態
+        document.querySelectorAll('.tower-btn').forEach(btn => btn.classList.remove('selected'));
+        
+        if (this.selectedTowerType === type) {
+            this.selectedTowerType = null; // 取消選取
+        } else {
+            this.selectedTowerType = type;
+            document.getElementById(`btn-${type}`).classList.add('selected');
+        }
+    }
+
+    handleCanvasClick(e) {
+        if (!this.selectedTowerType) return;
+
+        const rect = this.canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        // 轉換為格子座標
+        const gridX = Math.floor(x / CONFIG.gridSize);
+        const gridY = Math.floor(y / CONFIG.gridSize);
+
+        // 檢查是否可以建造
+        if (this.canBuild(gridX, gridY)) {
+            const cost = TOWER_TYPES[this.selectedTowerType].cost;
+            if (this.gameState.gold >= cost) {
+                this.gameState.gold -= cost;
+                this.entities.towers.push(new Tower(gridX, gridY, this.selectedTowerType));
+                // 建造後取消選擇 (或保留看手感，這裡設為取消)
+                // this.selectTower(null); 
+                this.updateUI();
+                this.createEffect(x, y, 'build');
+            } else {
+                this.showMessage("軍費不足！");
+            }
+        } else {
+            this.showMessage("此處無法建造！");
+        }
+    }
+
+    canBuild(gx, gy) {
+        // 1. 檢查是否在邊界內
+        if (gx < 0 || gx >= CONFIG.width || gy < 0 || gy >= CONFIG.height) return false;
+        
+        // 2. 檢查是否在路徑上
+        // 簡單判定：檢查該格子是否包含路徑線段
+        // 由於我們是網格移動，簡單比對路徑點連線
+        for (let i = 0; i < PATH_POINTS.length - 1; i++) {
+            const p1 = PATH_POINTS[i];
+            const p2 = PATH_POINTS[i+1];
+            
+            // 檢查水平線段
+            if (p1.y === p2.y && gy === p1.y) {
+                if (gx >= Math.min(p1.x, p2.x) && gx <= Math.max(p1.x, p2.x)) return false;
+            }
+            // 檢查垂直線段
+            if (p1.x === p2.x && gx === p1.x) {
+                if (gy >= Math.min(p1.y, p2.y) && gy <= Math.max(p1.y, p2.y)) return false;
+            }
+        }
+
+        // 3. 檢查是否已有塔
+        for (let t of this.entities.towers) {
+            if (t.gx === gx && t.gy === gy) return false;
+        }
+
+        return true;
+    }
+
+    // --- 遊戲迴圈 ---
+    gameLoop(timestamp) {
+        if (this.gameState.isGameOver) return;
+
+        // 計算 delta time
+        if (!this.lastTime) this.lastTime = timestamp;
+        const dt = timestamp - this.lastTime;
+        
+        // 限制更新頻率簡單處理 (以60FPS為基準)
+        if (dt > 16) {
+            this.update();
+            this.draw();
+            this.lastTime = timestamp;
+        }
+
+        requestAnimationFrame((t) => this.gameLoop(t));
+    }
+
+    update() {
+        // 1. 生成敵人
+        if (this.gameState.enemiesToSpawn > 0) {
+            this.gameState.spawnTimer++;
+            if (this.gameState.spawnTimer > this.gameState.spawnInterval) {
+                this.spawnEnemy();
+                this.gameState.spawnTimer = 0;
+            }
+        } else if (this.entities.enemies.length === 0 && this.gameState.isWaveActive) {
+            // 本波次結束，準備下一波
+            this.gameState.waveIndex++;
+            this.startNextWave();
+        }
+
+        // 2. 更新敵人
+        for (let i = this.entities.enemies.length - 1; i >= 0; i--) {
+            const enemy = this.entities.enemies[i];
+            enemy.update();
+            
+            // 到達終點
+            if (enemy.finished) {
+                this.gameState.lives--;
+                this.entities.enemies.splice(i, 1);
+                this.updateUI();
+                if (this.gameState.lives <= 0) this.endGame(false);
+            }
+        }
+
+        // 3. 塔攻擊
+        this.entities.towers.forEach(tower => tower.update(this.entities.enemies, this));
+
+        // 4. 子彈移動與碰撞
+        for (let i = this.entities.projectiles.length - 1; i >= 0; i--) {
+            const p = this.entities.projectiles[i];
+            p.update();
+            if (p.hit) {
+                this.createEffect(p.x, p.y, 'hit');
+                this.entities.projectiles.splice(i, 1);
+            } else if (p.outOfBounds) {
+                this.entities.projectiles.splice(i, 1);
+            }
+        }
+
+        // 5. 粒子效果
+        this.entities.particles = this.entities.particles.filter(p => p.life > 0);
+        this.entities.particles.forEach(p => p.update());
+    }
+
+    spawnEnemy() {
+        const typeData = ENEMY_TYPES[this.gameState.currentEnemyType];
+        // 從第一個路徑點開始
+        const startNode = this.pathPixels[0];
+        const enemy = new Enemy(startNode.x, startNode.y, this.gameState.currentEnemyType, typeData);
+        this.entities.enemies.push(enemy);
+        this.gameState.enemiesToSpawn--;
+    }
+
+    draw() {
+        // 清空畫布
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+        // 繪製地圖網格 (淡淡的)
+        this.ctx.strokeStyle = "rgba(0,0,0,0.05)";
+        this.ctx.beginPath();
+        for(let x=0; x<=CONFIG.width; x++) {
+            this.ctx.moveTo(x*CONFIG.gridSize, 0);
+            this.ctx.lineTo(x*CONFIG.gridSize, CONFIG.height*CONFIG.gridSize);
+        }
+        for(let y=0; y<=CONFIG.height; y++) {
+            this.ctx.moveTo(0, y*CONFIG.gridSize);
+            this.ctx.lineTo(CONFIG.width*CONFIG.gridSize, y*CONFIG.gridSize);
+        }
+        this.ctx.stroke();
+
+        // 繪製路徑
+        this.ctx.lineCap = 'round';
+        this.ctx.lineJoin = 'round';
+        this.ctx.lineWidth = 40;
+        this.ctx.strokeStyle = '#d2b48c'; // 土路顏色
+        this.ctx.beginPath();
+        if (this.pathPixels.length > 0) {
+            this.ctx.moveTo(this.pathPixels[0].x, this.pathPixels[0].y);
+            for (let i = 1; i < this.pathPixels.length; i++) {
+                this.ctx.lineTo(this.pathPixels[i].x, this.pathPixels[i].y);
+            }
+        }
+        this.ctx.stroke();
+
+        // 繪製起點終點
+        const start = this.pathPixels[0];
+        const end = this.pathPixels[this.pathPixels.length-1];
+        this.drawIcon(start.x, start.y, '🚩', 30);
+        this.drawIcon(end.x, end.y, '🏯', 40);
+
+        // 繪製塔
+        this.entities.towers.forEach(t => t.draw(this.ctx));
+
+        // 繪製敵人
+        this.entities.enemies.forEach(e => e.draw(this.ctx));
+
+        // 繪製子彈
+        this.entities.projectiles.forEach(p => p.draw(this.ctx));
+        
+        // 繪製粒子
+        this.entities.particles.forEach(p => p.draw(this.ctx));
+
+        // 繪製選取預覽 (Ghost Tower)
+        if (this.selectedTowerType) {
+            // 這裡可以做滑鼠跟隨效果，為了簡化省略
+        }
+    }
+
+    drawIcon(x, y, char, size) {
+        this.ctx.font = `${size}px Arial`;
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+        this.ctx.fillText(char, x, y);
+    }
+
+    createEffect(x, y, type) {
+        if (type === 'hit') {
+            for(let i=0; i<5; i++) {
+                this.entities.particles.push(new Particle(x, y, 'orange'));
+            }
+        } else if (type === 'build') {
+            for(let i=0; i<8; i++) {
+                this.entities.particles.push(new Particle(x, y, 'white'));
+            }
+        }
+    }
+
+    updateUI() {
+        document.getElementById('score').innerText = this.player.score;
+        document.getElementById('gold').innerText = this.gameState.gold;
+        document.getElementById('lives').innerText = this.gameState.lives;
+        document.getElementById('level').innerText = this.gameState.level + 1;
+    }
+
+    showMessage(msg) {
+        const el = document.getElementById('message-area');
+        el.textContent = msg;
+        el.style.display = 'block';
+        el.style.opacity = 1;
+        
+        // 簡單的淡出動畫
+        setTimeout(() => {
+            el.style.display = 'none';
+        }, 1500);
+    }
+
+    endGame(isWin) {
+        this.gameState.isGameOver = true;
+        const resultScreen = document.getElementById('result-screen');
+        const endTitle = document.getElementById('end-title');
+        
+        const duration = Math.floor((Date.now() - this.player.startTime) / 1000);
+        
+        if (isWin) {
+            endTitle.textContent = "🏆 一統天下 (通關成功)";
+            endTitle.style.color = "gold";
+        } else {
+            endTitle.textContent = "💀 城池失守 (挑戰失敗)";
+            endTitle.style.color = "#e74c3c";
+        }
+
+        // 填入分數
+        document.getElementById('final-score').textContent = this.player.score;
+        // 補滿未完成關卡的分數為0 (如果中途失敗)
+        for(let i=0; i<3; i++) {
+            if(!this.player.levelScores[i]) this.player.levelScores[i] = 0;
+            document.getElementById(`score-l${i+1}`).textContent = this.player.levelScores[i];
+        }
+        document.getElementById('final-time').textContent = duration + "s";
+
+        resultScreen.style.display = 'flex';
+
+        // 送出資料到 GAS
+        this.sendDataToGas(duration);
+    }
+
+    sendDataToGas(duration) {
+        const data = {
+            name: this.player.name,
+            id: this.player.id,
+            totalScore: this.player.score,
+            levelScores: this.player.levelScores,
+            duration: duration,
+            date: new Date().toISOString()
+        };
+
+        if (CONFIG.gasUrl.includes("請在此填入")) {
+            console.log("未設定 GAS URL，略過上傳");
+            return;
+        }
+
+        // 使用 no-cors 模式避免瀏覽器擋跨域，雖然拿不到回應，但數據會送出
+        fetch(CONFIG.gasUrl, {
+            method: 'POST',
+            mode: 'no-cors', 
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        }).then(() => {
+            console.log("Data sent to GAS");
+        }).catch(err => {
+            console.error("Upload failed", err);
+        });
+    }
+}
+
+/**
+ * 實體類別定義
+ */
+class Enemy {
+    constructor(x, y, type, data) {
+        this.x = x;
+        this.y = y;
+        this.type = type; // normal, heavy, boss
+        this.hp = data.hp;
+        this.maxHp = data.hp;
+        this.speed = data.speed;
+        this.baseSpeed = data.speed; // 用於減速還原
+        this.reward = data.reward;
+        this.color = data.color;
+        this.radius = data.radius;
+        
+        this.pathIndex = 0;
+        this.finished = false;
+        this.slowTimer = 0; // 減速效果計時
+    }
+
+    update() {
+        // 狀態效果處理
+        if (this.slowTimer > 0) {
+            this.slowTimer--;
+            this.speed = this.baseSpeed * 0.5;
+        } else {
+            this.speed = this.baseSpeed;
+        }
+
+        // 移動邏輯
+        // 目標點
+        const target = Game.pathPixels[this.pathIndex + 1];
+        if (!target) {
+            this.finished = true;
+            return;
+        }
+
+        const dx = target.x - this.x;
+        const dy = target.y - this.y;
+        const dist = Math.hypot(dx, dy);
+
+        if (dist <= this.speed) {
+            this.x = target.x;
+            this.y = target.y;
+            this.pathIndex++;
+            if (this.pathIndex >= Game.pathPixels.length - 1) {
+                this.finished = true;
+            }
+        } else {
+            this.x += (dx / dist) * this.speed;
+            this.y += (dy / dist) * this.speed;
+        }
+    }
+
+    draw(ctx) {
+        // 畫身體
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Q版眼睛
+        ctx.fillStyle = 'white';
+        ctx.beginPath();
+        ctx.arc(this.x - 5, this.y - 2, 4, 0, Math.PI * 2);
+        ctx.arc(this.x + 5, this.y - 2, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = 'black';
+        ctx.beginPath();
+        ctx.arc(this.x - 5, this.y - 2, 2, 0, Math.PI * 2);
+        ctx.arc(this.x + 5, this.y - 2, 2, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Boss 加個皇冠
+        if (this.type === 'boss') {
+            ctx.fillStyle = 'gold';
+            ctx.font = '20px Arial';
+            ctx.fillText('👑', this.x, this.y - 25);
+        }
+
+        // 血條
+        const hpPercent = this.hp / this.maxHp;
+        ctx.fillStyle = 'red';
+        ctx.fillRect(this.x - 15, this.y - this.radius - 10, 30, 4);
+        ctx.fillStyle = '#2ecc71';
+        ctx.fillRect(this.x - 15, this.y - this.radius - 10, 30 * hpPercent, 4);
+    }
+    
+    takeDamage(amount) {
+        this.hp -= amount;
+        if (this.hp <= 0) {
+            Game.player.score += Math.floor(this.reward); // 增加分數
+            Game.gameState.gold += this.reward; // 增加金幣
+            Game.updateUI();
+            
+            // 從陣列移除需在外部迴圈處理
+            const idx = Game.entities.enemies.indexOf(this);
+            if (idx > -1) Game.entities.enemies.splice(idx, 1);
+        }
+    }
+}
+
+class Tower {
+    constructor(gx, gy, typeKey) {
+        this.gx = gx;
+        this.gy = gy;
+        this.x = gx * CONFIG.gridSize + CONFIG.gridSize/2;
+        this.y = gy * CONFIG.gridSize + CONFIG.gridSize/2;
+        this.typeKey = typeKey;
+        
+        const data = TOWER_TYPES[typeKey];
+        this.range = data.range * CONFIG.gridSize;
+        this.damage = data.damage;
+        this.cooldown = data.cooldown;
+        this.color = data.color;
+        this.cdTimer = 0;
+        this.name = data.name;
+    }
+
+    update(enemies, game) {
+        if (this.cdTimer > 0) this.cdTimer--;
+
+        if (this.cdTimer <= 0) {
+            const target = this.findTarget(enemies);
+            if (target) {
+                this.shoot(target, game);
+                this.cdTimer = this.cooldown;
+            }
+        }
+    }
+
+    findTarget(enemies) {
+        // 找範圍內走最前面的敵人
+        let bestTarget = null;
+        let maxProgress = -1;
+
+        for (const e of enemies) {
+            const dist = Math.hypot(e.x - this.x, e.y - this.y);
+            if (dist <= this.range) {
+                // pathIndex 代表走了幾個點，越後面代表越接近終點
+                const progress = e.pathIndex * 1000 + (1000 - Math.hypot(e.x - Game.pathPixels[e.pathIndex+1]?.x || 0, e.y - Game.pathPixels[e.pathIndex+1]?.y || 0));
+                
+                if (progress > maxProgress) {
+                    maxProgress = progress;
+                    bestTarget = e;
+                }
+            }
+        }
+        return bestTarget;
+    }
+
+    shoot(target, game) {
+        game.entities.projectiles.push(new Projectile(this.x, this.y, target, this.typeKey));
+    }
+
+    draw(ctx) {
+        // 塔基座
+        ctx.fillStyle = '#bdc3c7';
+        ctx.fillRect(this.x - 20, this.y - 20, 40, 40);
+        
+        // 塔身
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, 15, 0, Math.PI*2);
+        ctx.fill();
+
+        // 塔圖示
+        let icon = '';
+        if (this.typeKey === 'archer') icon = '🏹';
+        if (this.typeKey === 'spear') icon = '🔱';
+        if (this.typeKey === 'mage') icon = '🔮';
+        if (this.typeKey === 'cannon') icon = '💣';
+        
+        ctx.font = '20px Arial';
+        ctx.fillStyle = 'white';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(icon, this.x, this.y);
+    }
+}
+
+class Projectile {
+    constructor(x, y, target, towerType) {
+        this.x = x;
+        this.y = y;
+        this.target = target; // 鎖定目標
+        this.type = towerType;
+        
+        const tData = TOWER_TYPES[towerType];
+        this.speed = tData.projectileSpeed;
+        this.damage = tData.damage;
+        this.isAoE = tData.type.includes('aoe');
+        
+        this.hit = false;
+        this.outOfBounds = false;
+    }
+
+    update() {
+        if (!this.target || this.target.hp <= 0) {
+            this.hit = true; // 目標消失，視為擊中消失或無效
+            return;
+        }
+
+        const dx = this.target.x - this.x;
+        const dy = this.target.y - this.y;
+        const dist = Math.hypot(dx, dy);
+
+        if (dist <= this.speed) {
+            this.hitTarget();
+        } else {
+            this.x += (dx / dist) * this.speed;
+            this.y += (dy / dist) * this.speed;
+        }
+    }
+
+    hitTarget() {
+        this.hit = true;
+        
+        if (this.isAoE) {
+            // 範圍傷害
+            const aoeRange = 80;
+            Game.entities.enemies.forEach(e => {
+                if (Math.hypot(e.x - this.x, e.y - this.y) <= aoeRange) {
+                    this.applyDamage(e);
+                }
+            });
+        } else {
+            // 單體傷害
+            this.applyDamage(this.target);
+        }
+    }
+
+    applyDamage(enemy) {
+        enemy.takeDamage(this.damage);
+        // 特殊效果
+        if (this.type === 'mage') {
+            enemy.slowTimer = 60; // 減速 60 frames (約1秒)
+        }
+    }
+
+    draw(ctx) {
+        ctx.fillStyle = 'black';
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, 4, 0, Math.PI*2);
+        ctx.fill();
+    }
+}
+
+class Particle {
+    constructor(x, y, color) {
+        this.x = x;
+        this.y = y;
+        this.color = color;
+        this.vx = (Math.random() - 0.5) * 4;
+        this.vy = (Math.random() - 0.5) * 4;
+        this.life = 1.0;
+    }
+
+    update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.life -= 0.05;
+    }
+
+    draw(ctx) {
+        ctx.globalAlpha = Math.max(0, this.life);
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, 3, 0, Math.PI*2);
+        ctx.fill();
+        ctx.globalAlpha = 1.0;
+    }
+}
+
+// 初始化遊戲
+const Game = new GameEngine();
+
+</script>
+</body>
+</html>
