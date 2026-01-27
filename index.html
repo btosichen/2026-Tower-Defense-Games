@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>三國策略攻防戰 (雙向對戰版)</title>
+    <title>三國策略攻防戰 (雙向對戰版 - 10關卡制)</title>
     <style>
         :root {
             --primary-color: #f39c12; /* 三國金 */
@@ -199,7 +199,7 @@
     <div id="login-screen">
         <div class="panel-box">
             <h1>⚔️ 三國策略攻防戰</h1>
-            <p>調兵遣將，攻破敵方大營！</p>
+            <p>挑戰 10 大關卡，攻破敵方大營！</p>
             <input type="text" id="player-name" placeholder="輸入將軍大名" maxlength="10">
             <button class="start-btn" onclick="Game.initLogin()">出征</button>
             <p style="font-size:12px; color:#7f8c8d; margin-top:10px;">(記得確認 GAS 已部署)</p>
@@ -213,7 +213,7 @@
         <div id="ui-layer">
             <div id="top-bar" class="hud-panel">
                 <div style="display:flex; flex-direction:column; align-items:flex-start;">
-                    <span style="color:var(--enemy-color); font-size:14px;">敵軍大營 (魏)</span>
+                    <span style="color:var(--enemy-color); font-size:14px;">敵軍大營 (魏) <span id="enemy-stats-hint" style="font-size:10px;color:#888;"></span></span>
                     <div class="hp-bar-container">
                         <div id="enemy-hp-bar" class="hp-bar-fill" style="width: 100%; background: #c0392b;"></div>
                     </div>
@@ -255,7 +255,7 @@
 
 <script>
 /**
- * 繪圖輔助: 畫圓柱體 (解決 this.drawCylinder 報錯問題)
+ * 繪圖輔助: 畫圓柱體
  */
 function drawCylinder(ctx, x, y, radius, height, color, sideColor) {
     ctx.fillStyle = sideColor;
@@ -280,11 +280,10 @@ const CONFIG = {
     gridSize: 80, 
     width: 15,
     height: 10,
-    gasUrl: 'https://script.google.com/macros/s/AKfycbwqZFv8Jzk4A1ERYbzljRudebPBTlBn4OcSsFWfWBGLTIKGSMDEd3focinsGovte4c9/exec' // 請確認此為您的 Web App URL
+    gasUrl: 'https://script.google.com/macros/s/AKfycbwqZFv8Jzk4A1ERYbzljRudebPBTlBn4OcSsFWfWBGLTIKGSMDEd3focinsGovte4c9/exec'
 };
 
-// 兵種定義 (雙方通用)
-// type: melee (近戰), ranged (遠程)
+// 兵種定義
 const UNIT_TYPES = {
     sword:    { name: '刀兵',   cost: 50,  hp: 120, atk: 15, range: 40,  speed: 2.5, type: 'melee',  icon: '🗡️', color: '#f1c40f', cd: 60 },
     bow:      { name: '弓兵',   cost: 120, hp: 80,  atk: 25, range: 250, speed: 2.5, type: 'ranged', icon: '🏹', color: '#2ecc71', cd: 80 },
@@ -294,31 +293,44 @@ const UNIT_TYPES = {
     general:  { name: '大將軍', cost: 900, hp: 1200,atk: 120,range: 60,  speed: 1.2, type: 'melee',  icon: '👑', color: '#c0392b', cd: 500 }
 };
 
-// 關卡設定
-const LEVELS = [
-    {   // Level 1
-        enemySpawnRate: 180, // frames
-        enemyTypes: ['sword', 'sword', 'spear'],
-        goldRate: 1 // 每幀金錢增加
-    },
-    {   // Level 2
-        enemySpawnRate: 150,
-        enemyTypes: ['sword', 'bow', 'spear', 'vanguard'],
-        goldRate: 1.5
-    },
-    {   // Level 3
-        enemySpawnRate: 120,
-        enemyTypes: ['spear', 'bow', 'vanguard', 'vice', 'general'],
-        goldRate: 2
-    }
+// 10 個不同的地圖路徑 (Start: index 0 -> End: Last)
+const MAPS = [
+    // 1. S型 (簡單)
+    [{x:0,y:2}, {x:3,y:2}, {x:3,y:7}, {x:8,y:7}, {x:8,y:2}, {x:12,y:2}, {x:12,y:6}, {x:14,y:6}],
+    // 2. U型 (中路空曠)
+    [{x:0,y:1}, {x:2,y:1}, {x:2,y:8}, {x:12,y:8}, {x:12,y:1}, {x:14,y:1}],
+    // 3. 鋸齒型 (路徑長)
+    [{x:0,y:8}, {x:2,y:8}, {x:2,y:2}, {x:5,y:2}, {x:5,y:8}, {x:8,y:8}, {x:8,y:2}, {x:11,y:2}, {x:11,y:8}, {x:14,y:8}],
+    // 4. 中央突破 (直線微彎)
+    [{x:0,y:5}, {x:4,y:5}, {x:4,y:3}, {x:10,y:3}, {x:10,y:6}, {x:14,y:6}],
+    // 5. 迴旋 (螺旋感)
+    [{x:0,y:0}, {x:13,y:0}, {x:13,y:8}, {x:2,y:8}, {x:2,y:3}, {x:10,y:3}, {x:10,y:5}, {x:14,y:5}],
+    // 6. 雙階梯
+    [{x:0,y:9}, {x:3,y:9}, {x:3,y:6}, {x:6,y:6}, {x:6,y:3}, {x:9,y:3}, {x:9,y:0}, {x:14,y:0}],
+    // 7. 長城防線 (橫向來回)
+    [{x:0,y:2}, {x:14,y:2}, {x:14,y:5}, {x:0,y:5}, {x:0,y:8}, {x:14,y:8}],
+    // 8. 窄口 (只有中間可過)
+    [{x:0,y:1}, {x:6,y:1}, {x:6,y:5}, {x:8,y:5}, {x:8,y:9}, {x:14,y:9}],
+    // 9. 大外圈
+    [{x:0,y:4}, {x:1,y:4}, {x:1,y:9}, {x:13,y:9}, {x:13,y:1}, {x:1,y:1}, {x:1,y:4}, {x:14,y:4}],
+    // 10. 終極迷宮
+    [{x:0,y:0}, {x:0,y:9}, {x:3,y:9}, {x:3,y:2}, {x:6,y:2}, {x:6,y:7}, {x:9,y:7}, {x:9,y:1}, {x:12,y:1}, {x:12,y:8}, {x:14,y:8}]
 ];
 
-// 路徑點 (S型)
-const PATH_POINTS = [
-    {x: 0, y: 2}, {x: 3, y: 2}, {x: 3, y: 7}, 
-    {x: 8, y: 7}, {x: 8, y: 2}, {x: 12, y: 2}, 
-    {x: 12, y: 6}, {x: 14, y: 6}
-];
+// 10 關設定 (敵人隨關卡變強)
+const LEVELS = Array.from({length: 10}, (_, i) => ({
+    // 難度參數
+    enemySpawnRate: Math.max(60, 180 - i * 12), // 出兵速度越來越快
+    goldRate: 1 + i * 0.5,                      // 金錢獲取提升
+    // 敵人類型池 (隨關卡解鎖更強單位)
+    enemyTypes: i < 2 ? ['sword', 'sword', 'spear'] :
+                i < 4 ? ['sword', 'bow', 'spear', 'vanguard'] :
+                i < 7 ? ['spear', 'bow', 'vanguard', 'vice'] :
+                        ['vanguard', 'vice', 'general'],
+    // 敵人屬性加成 (每關 +100% 攻擊與血量, 速度微調)
+    statsMultiplier: 1 + i,       // Lv1=1x, Lv2=2x, Lv3=3x...
+    speedMultiplier: 1 + (i * 0.1)// Lv1=1.0x, Lv10=1.9x
+}));
 
 class GameEngine {
     constructor() {
@@ -336,19 +348,12 @@ class GameEngine {
             enemySpawnTimer: 0
         };
 
-        this.units = []; // 所有的兵 (敵 + 我)
+        this.units = []; 
         this.projectiles = [];
         this.particles = [];
+        this.pathPixels = [];
         
-        // 預先計算路徑像素
-        this.pathPixels = PATH_POINTS.map(p => ({
-            x: p.x * CONFIG.gridSize + CONFIG.gridSize/2,
-            y: p.y * CONFIG.gridSize + CONFIG.gridSize/2
-        }));
-
         this.lastTime = 0;
-        
-        // Fix: initialize cooldowns BEFORE creating buttons that use it
         this.cooldowns = {}; 
         this.createUnitButtons();
     }
@@ -371,11 +376,9 @@ class GameEngine {
                 <div class="cooldown-overlay" style="position:absolute;bottom:0;left:0;width:100%;height:0%;background:rgba(0,0,0,0.5);transition:height 0.1s;"></div>
             `;
             bar.appendChild(div);
-            // This line was causing the error because this.cooldowns was undefined
             this.cooldowns[key] = 0;
         });
 
-        // 鍵盤熱鍵
         document.addEventListener('keydown', (e) => {
             const idx = parseInt(e.key) - 1;
             if (idx >= 0 && idx < keys.length) {
@@ -399,39 +402,63 @@ class GameEngine {
     }
 
     startLevel(lvl) {
-        if (lvl >= LEVELS.length) return this.endGame(true, "天下統一！");
+        if (lvl >= LEVELS.length) return this.endGame(true, "天下統一！三國歸一！");
         
         this.gameState.level = lvl;
-        this.gameState.gold = 500; // 初始金錢
-        this.gameState.maxBaseHp = 1000 + (lvl * 500);
-        this.gameState.baseHpEnemy = this.gameState.maxBaseHp;
-        this.gameState.baseHpPlayer = 1000; // 玩家主堡血量固定? 或者也可以升級
         
+        // 載入該關卡地圖
+        const mapPoints = MAPS[lvl % MAPS.length];
+        this.pathPixels = mapPoints.map(p => ({
+            x: p.x * CONFIG.gridSize + CONFIG.gridSize/2,
+            y: p.y * CONFIG.gridSize + CONFIG.gridSize/2
+        }));
+
+        // 難度設定
+        const lvlConfig = LEVELS[lvl];
+        // 玩家血量微幅成長，但敵人成長更快
+        this.gameState.maxBaseHp = 1000 + (lvl * 1000); 
+        this.gameState.baseHpEnemy = this.gameState.maxBaseHp * lvlConfig.statsMultiplier; 
+        this.gameState.baseHpPlayer = 1000 + (lvl * 200);
+        
+        // 如果是第一關，給初始金；否則保留上一關金錢並給予過關獎勵
+        if (lvl === 0) {
+            this.gameState.gold = 500;
+        } else {
+            // 過關獎勵：基礎 1000 + 關卡加成
+            const bonus = 1000 + (lvl * 500);
+            this.gameState.gold += bonus;
+            this.showMessage(`獲得凱旋獎金 $${bonus}！`, false);
+        }
+
         this.units = [];
         this.projectiles = [];
         this.particles = [];
         
         this.updateUI();
-        this.showMessage(`第 ${lvl+1} 關 - 進攻！`);
+        
+        // 顯示敵人強度提示
+        const enemyStatsText = `(敵軍強度: ${Math.round(lvlConfig.statsMultiplier * 100)}%)`;
+        document.getElementById('enemy-stats-hint').innerText = enemyStatsText;
+        
+        setTimeout(() => {
+            this.showMessage(`第 ${lvl+1} 關 - 進攻！`);
+        }, 500);
     }
 
     spawnPlayerUnit(typeKey) {
         const data = UNIT_TYPES[typeKey];
-        // 檢查金錢
         if (this.gameState.gold < data.cost) {
             this.showMessage("軍費不足", true);
             return;
         }
-        // 檢查冷卻
         if (this.cooldowns[typeKey] > 0) return;
 
-        // 扣款與生成
         this.gameState.gold -= data.cost;
-        this.cooldowns[typeKey] = data.cd; // 設定冷卻
+        this.cooldowns[typeKey] = data.cd; 
 
-        // 玩家單位：從路徑最後一點出發，往 index 0 走
         const startNode = this.pathPixels[this.pathPixels.length - 1];
-        const unit = new Unit(startNode.x, startNode.y, 'player', typeKey, this.pathPixels.length - 1);
+        // 玩家單位不享受關卡加成 (除非做升級系統，這裡暫時保持原樣，靠數量與策略取勝)
+        const unit = new Unit(startNode.x, startNode.y, 'player', typeKey, this.pathPixels.length - 1, 1, 1);
         this.units.push(unit);
         this.updateUI();
     }
@@ -441,9 +468,9 @@ class GameEngine {
         const types = lvlData.enemyTypes;
         const randType = types[Math.floor(Math.random() * types.length)];
         
-        // 敵方單位：從路徑 0 出發，往最後走
         const startNode = this.pathPixels[0];
-        const unit = new Unit(startNode.x, startNode.y, 'enemy', randType, 0);
+        // 傳入關卡倍率
+        const unit = new Unit(startNode.x, startNode.y, 'enemy', randType, 0, lvlData.statsMultiplier, lvlData.speedMultiplier);
         this.units.push(unit);
     }
 
@@ -464,8 +491,8 @@ class GameEngine {
         const lvlData = LEVELS[this.gameState.level];
 
         // 1. 資源與生成
-        this.gameState.gold += lvlData.goldRate * 0.5; // 金錢自然增長
-        if (this.gameState.gold > 5000) this.gameState.gold = 5000;
+        this.gameState.gold += lvlData.goldRate * 0.5; 
+        if (this.gameState.gold > 20000) this.gameState.gold = 20000; // 上限提高
 
         // 敵軍生成
         this.gameState.enemySpawnTimer++;
@@ -477,7 +504,6 @@ class GameEngine {
         // 冷卻更新
         for (let key in this.cooldowns) {
             if (this.cooldowns[key] > 0) this.cooldowns[key]--;
-            // 更新 UI 遮罩高度
             const btn = document.getElementById(`btn-${key}`);
             if(btn) {
                 const overlay = btn.querySelector('.cooldown-overlay');
@@ -491,8 +517,7 @@ class GameEngine {
             }
         }
 
-        // 2. 單位邏輯 (移動、戰鬥)
-        // 先排序 (y軸渲染用，但也可用於簡單的邏輯處理)
+        // 2. 單位邏輯
         this.units.sort((a, b) => a.y - b.y);
 
         for (let i = this.units.length - 1; i >= 0; i--) {
@@ -500,10 +525,10 @@ class GameEngine {
             u.update(this);
             if (u.dead) {
                 this.units.splice(i, 1);
-                // 獎勵金
                 if (u.team === 'enemy') {
-                    this.gameState.gold += UNIT_TYPES[u.typeKey].cost * 0.3;
-                    this.player.score += 10;
+                    // 擊殺獎金也隨關卡提升
+                    this.gameState.gold += UNIT_TYPES[u.typeKey].cost * 0.3 * lvlData.statsMultiplier;
+                    this.player.score += 10 * (this.gameState.level + 1);
                 }
             }
         }
@@ -524,41 +549,35 @@ class GameEngine {
         // 勝負判定
         if (this.gameState.baseHpPlayer <= 0) this.endGame(false, "城池陷落，勝敗乃兵家常事...");
         if (this.gameState.baseHpEnemy <= 0) {
-            // 下一關
-            this.gameState.baseHpEnemy = 0; // 防止負數
-            this.showMessage("敵營攻破！前往下一戰場...", false);
-            // 清場並進入下一關
+            this.gameState.baseHpEnemy = 0;
+            this.showMessage("敵營攻破！全軍整備，前往下一戰場...", false);
+            // 延遲進入下一關
+            this.gameState.enemySpawnTimer = -999; // 停止出兵
             setTimeout(() => {
                  this.startLevel(this.gameState.level + 1);
-            }, 2000);
+            }, 3000);
         }
     }
 
     draw() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
-        // 畫路徑
         this.drawPath();
 
-        // 畫基地
         const start = this.pathPixels[0];
         const end = this.pathPixels[this.pathPixels.length-1];
         
-        // 敵方基地 (左上)
-        drawCylinder(this.ctx, start.x, start.y, 50, 60, '#c0392b', '#922b21');
-        this.drawText(start.x, start.y - 80, "敵營", "20px Arial", "#fff");
+        // 敵方基地 (根據強度變大)
+        const enemyScale = 1 + (this.gameState.level * 0.1);
+        drawCylinder(this.ctx, start.x, start.y, 50 * enemyScale, 60 * enemyScale, '#c0392b', '#922b21');
+        this.drawText(start.x, start.y - 80 * enemyScale, `敵營 Lv.${this.gameState.level+1}`, "20px Arial", "#fff");
         
-        // 我方基地 (右下)
+        // 我方基地
         drawCylinder(this.ctx, end.x, end.y, 50, 60, '#2980b9', '#1a5276');
         this.drawText(end.x, end.y - 80, "我城", "20px Arial", "#fff");
 
-        // 畫單位
         this.units.forEach(u => u.draw(this.ctx));
-
-        // 畫子彈
         this.projectiles.forEach(p => p.draw(this.ctx));
-
-        // 畫粒子
         this.particles.forEach(p => p.draw(this.ctx));
     }
 
@@ -566,7 +585,7 @@ class GameEngine {
         this.ctx.lineCap = 'round';
         this.ctx.lineJoin = 'round';
         this.ctx.lineWidth = 60;
-        this.ctx.strokeStyle = '#d7bde2'; // 路徑底色
+        this.ctx.strokeStyle = '#d7bde2'; 
         this.ctx.beginPath();
         if (this.pathPixels.length > 0) {
             this.ctx.moveTo(this.pathPixels[0].x, this.pathPixels[0].y + 5);
@@ -576,7 +595,7 @@ class GameEngine {
         }
         this.ctx.stroke();
 
-        this.ctx.strokeStyle = '#f5eef8'; // 路面
+        this.ctx.strokeStyle = '#f5eef8';
         this.ctx.beginPath();
         if (this.pathPixels.length > 0) {
             this.ctx.moveTo(this.pathPixels[0].x, this.pathPixels[0].y);
@@ -598,11 +617,12 @@ class GameEngine {
         document.getElementById('gold').innerText = Math.floor(this.gameState.gold);
         document.getElementById('wave-info').innerText = `第 ${this.gameState.level + 1} 關`;
         
-        // 血條更新
-        const pPct = Math.max(0, (this.gameState.baseHpPlayer / 1000) * 100);
+        // 血條更新 (考慮 maxHp 變動)
+        const pPct = Math.max(0, (this.gameState.baseHpPlayer / (1000 + this.gameState.level * 200)) * 100);
         document.getElementById('player-hp-bar').style.width = `${pPct}%`;
         
-        const ePct = Math.max(0, (this.gameState.baseHpEnemy / this.gameState.maxBaseHp) * 100);
+        const enemyMaxHp = (1000 + (this.gameState.level * 1000)) * LEVELS[this.gameState.level].statsMultiplier;
+        const ePct = Math.max(0, (this.gameState.baseHpEnemy / enemyMaxHp) * 100);
         document.getElementById('enemy-hp-bar').style.width = `${ePct}%`;
     }
 
@@ -614,7 +634,6 @@ class GameEngine {
         el.style.display = 'block';
         el.style.opacity = 1;
         
-        // 清除之前的 timeout 防止閃爍
         if(this.msgTimeout) clearTimeout(this.msgTimeout);
         this.msgTimeout = setTimeout(() => {
             el.style.display = 'none';
@@ -641,7 +660,6 @@ class GameEngine {
         document.getElementById('final-score').innerText = this.player.score;
         document.getElementById('final-time').innerText = duration + "s";
 
-        // 發送資料
         this.sendToGas(duration);
     }
 
@@ -664,35 +682,32 @@ class GameEngine {
     }
 }
 
-/**
- * 單位類別 (敵我通用)
- */
 class Unit {
-    constructor(x, y, team, typeKey, pathIdx) {
+    constructor(x, y, team, typeKey, pathIdx, statsMult = 1, speedMult = 1) {
         this.x = x;
         this.y = y;
-        this.team = team; // 'player' or 'enemy'
+        this.team = team; 
         this.typeKey = typeKey;
         
         const data = UNIT_TYPES[typeKey];
         this.name = data.name;
-        this.maxHp = data.hp;
-        this.hp = data.hp;
-        this.atk = data.atk;
+        // 套用關卡倍率
+        this.maxHp = data.hp * statsMult;
+        this.hp = this.maxHp;
+        this.atk = data.atk * statsMult;
         this.range = data.range;
-        this.speed = data.speed;
-        this.attackType = data.type; // melee, ranged
+        this.speed = data.speed * speedMult;
+        
+        this.attackType = data.type; 
         this.icon = data.icon;
         this.color = data.color;
 
-        // 路徑邏輯
         this.pathIndex = pathIdx;
         this.targetNode = null;
-        this.state = 'move'; // move, attack
+        this.state = 'move'; 
         this.attackCooldown = 0;
         this.dead = false;
         
-        // 3D 視覺偏移
         this.visualHeight = (typeKey === 'general') ? 50 : 30;
         this.bounce = 0;
     }
@@ -700,26 +715,21 @@ class Unit {
     update(game) {
         if (this.dead) return;
 
-        // 戰鬥邏輯
         if (this.attackCooldown > 0) this.attackCooldown--;
 
-        // 尋找目標
         let target = this.findTarget(game);
         
         if (target) {
-            // 有目標在射程內 -> 攻擊
             this.state = 'attack';
             if (this.attackCooldown <= 0) {
                 this.attack(target, game);
-                this.attackCooldown = 60; // 攻擊間隔 (1秒)
+                this.attackCooldown = 60; 
             }
         } else {
-            // 無目標 -> 移動
             this.state = 'move';
             this.move(game);
         }
 
-        // 走路動畫
         if (this.state === 'move') {
             this.bounce = Math.sin(Date.now() / 100) * 3;
         } else {
@@ -728,22 +738,18 @@ class Unit {
     }
 
     findTarget(game) {
-        // 1. 檢查是否有敵方單位在射程內
         for (let u of game.units) {
             if (u.team !== this.team && !u.dead) {
                 const dist = Math.hypot(u.x - this.x, u.y - this.y);
                 if (dist <= this.range) return u;
             }
         }
-        // 2. 檢查是否在敵方基地射程內
         let baseDist = 9999;
         if (this.team === 'player') {
-            // 目標是敵方基地 (起點 path[0])
             const base = game.pathPixels[0];
             baseDist = Math.hypot(base.x - this.x, base.y - this.y);
             if (baseDist <= this.range) return { type: 'base', team: 'enemy' };
         } else {
-            // 目標是我方基地 (終點)
             const base = game.pathPixels[game.pathPixels.length-1];
             baseDist = Math.hypot(base.x - this.x, base.y - this.y);
             if (baseDist <= this.range) return { type: 'base', team: 'player' };
@@ -752,16 +758,14 @@ class Unit {
     }
 
     attack(target, game) {
-        // 如果是遠程，發射子彈
         if (this.attackType === 'ranged') {
             game.projectiles.push(new Projectile(this.x, this.y - this.visualHeight, target, this.atk, this.team));
         } else {
-            // 近戰直接扣血
             game.createEffect(target.x || this.x, target.y || this.y, 'hit');
             if (target.type === 'base') {
                 if (target.team === 'player') game.gameState.baseHpPlayer -= this.atk;
                 else game.gameState.baseHpEnemy -= this.atk;
-                game.createEffect(this.x, this.y, 'hit'); // 攻擊特效
+                game.createEffect(this.x, this.y, 'hit'); 
             } else {
                 target.takeDamage(this.atk, game);
             }
@@ -769,15 +773,10 @@ class Unit {
     }
 
     move(game) {
-        // 根據隊伍決定下一個路徑點
-        // 玩家: index N -> 0
-        // 敵軍: index 0 -> N
-        
         let nextIdx = (this.team === 'player') ? this.pathIndex - 1 : this.pathIndex + 1;
         
-        // 檢查是否到達終點 (基地)
         if (nextIdx < 0 || nextIdx >= game.pathPixels.length) {
-            return; // 已在基地旁，等待攻擊
+            return; 
         }
 
         const targetNode = game.pathPixels[nextIdx];
@@ -806,14 +805,11 @@ class Unit {
     draw(ctx) {
         const drawY = this.y - this.visualHeight + this.bounce;
 
-        // 腳底陰影
         ctx.fillStyle = "rgba(0,0,0,0.3)";
         ctx.beginPath();
         ctx.ellipse(this.x, this.y, 15, 8, 0, 0, Math.PI*2);
         ctx.fill();
 
-        // 身體 (顏色區分陣營)
-        // 敵軍紅框，我軍藍框
         ctx.lineWidth = 3;
         ctx.strokeStyle = this.team === 'player' ? '#2980b9' : '#c0392b';
         ctx.fillStyle = this.color;
@@ -823,14 +819,12 @@ class Unit {
         ctx.fill();
         ctx.stroke();
 
-        // icon
         ctx.font = "20px Arial";
         ctx.fillStyle = "#fff";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillText(this.icon, this.x, drawY);
 
-        // 血條
         const hpPct = this.hp / this.maxHp;
         ctx.fillStyle = "red";
         ctx.fillRect(this.x - 15, drawY - 30, 30, 5);
@@ -848,14 +842,12 @@ class Projectile {
         this.speed = 10;
         this.hit = false;
         
-        // 鎖定目標位置 (因為目標可能是物件或座標)
         this.tx = target.x || (team === 'player' ? Game.pathPixels[0].x : Game.pathPixels[Game.pathPixels.length-1].x);
         this.ty = target.y || (team === 'player' ? Game.pathPixels[0].y : Game.pathPixels[Game.pathPixels.length-1].y);
         if(target.visualHeight) this.ty -= target.visualHeight;
     }
 
     update() {
-        // 追蹤邏輯 (簡單追蹤)
         if (this.target && !this.target.dead) {
             this.tx = this.target.x || this.tx;
             this.ty = (this.target.y || this.ty) - (this.target.visualHeight || 30);
