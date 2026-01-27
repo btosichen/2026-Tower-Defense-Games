@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>三國策略攻防戰 (3D音效強化版)</title>
+    <title>三國策略攻防戰 (3D自由視角版)v0127</title>
     <style>
         :root {
             --primary-color: #f39c12; /* 三國金 */
@@ -11,7 +11,7 @@
             --player-color: #2980b9;  /* 我軍藍 */
             --enemy-color: #c0392b;   /* 敵軍紅 */
             --bg-color: #fcf3cf;
-            --ui-bg: rgba(255, 255, 255, 0.95);
+            --ui-bg: rgba(255, 255, 255, 0.9);
         }
 
         body {
@@ -31,12 +31,16 @@
             position: relative;
             width: 1200px;
             height: 800px;
-            background-color: var(--bg-color);
+            background-color: #a9dfbf; /* 預設草地色 */
             box-shadow: 0 0 50px rgba(0,0,0,0.8);
             border-radius: 12px;
             overflow: hidden;
             display: none;
-            transform-origin: center;
+            cursor: grab; /* 預設游標為抓取手勢 */
+        }
+        
+        #game-container:active {
+            cursor: grabbing; /* 抓取中 */
         }
         
         @media (max-width: 1220px), (max-height: 820px) {
@@ -48,12 +52,7 @@
 
         canvas {
             display: block;
-            background: #a9dfbf;
-            /* 地面紋理 */
-            background-image: 
-                linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px);
-            background-size: 80px 80px;
+            /* 背景紋理現在由 JS 繪製以支援旋轉 */
         }
 
         #ui-layer {
@@ -68,36 +67,40 @@
         .hud-panel {
             position: absolute;
             background: var(--ui-bg);
-            border: 3px solid var(--primary-color);
-            border-radius: 10px;
-            padding: 10px;
+            border: 2px solid var(--primary-color);
+            border-radius: 8px;
+            padding: 8px;
             pointer-events: auto;
             color: #2c3e50;
             font-weight: bold;
-            box-shadow: 0 6px 0 rgba(0,0,0,0.2);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            backdrop-filter: blur(4px);
         }
 
-        /* Top Bar */
+        /* Top Bar - 瘦身版 */
         #top-bar {
-            top: 15px;
-            left: 15px;
-            right: 15px;
-            height: 70px;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            height: 50px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            font-size: 20px;
+            font-size: 16px;
+            border-radius: 25px;
+            background: rgba(255, 255, 255, 0.95);
         }
 
         .hp-bar-container {
-            width: 320px;
-            height: 24px;
+            width: 200px; /* 縮短血條 */
+            height: 16px;
             background: #34495e;
-            border-radius: 12px;
+            border-radius: 8px;
             overflow: hidden;
-            border: 3px solid #fff;
+            border: 2px solid #fff;
             position: relative;
-            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+            margin: 0 10px;
         }
 
         .hp-bar-fill {
@@ -105,13 +108,35 @@
             transition: width 0.2s;
             position: relative;
         }
-        
-        .hp-bar-fill::after {
-            content: '';
+
+        /* Camera Controls - 新增 */
+        #cam-controls {
             position: absolute;
-            top: 0; left: 0; right: 0; height: 50%;
-            background: rgba(255,255,255,0.2);
+            right: 20px;
+            top: 80px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: auto;
         }
+
+        .cam-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid #fff;
+            background: rgba(44, 62, 80, 0.8);
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: 0.2s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+        .cam-btn:hover { background: var(--primary-color); transform: scale(1.1); }
+        .cam-btn:active { transform: scale(0.9); }
 
         /* Bottom Bar (Unit Selection) */
         #bottom-bar {
@@ -119,17 +144,18 @@
             left: 50%;
             transform: translateX(-50%);
             display: flex;
-            gap: 12px;
-            padding: 15px 30px;
-            width: 90%;
+            gap: 8px;
+            padding: 10px 20px;
+            width: auto;
             justify-content: center;
+            border-radius: 15px;
         }
 
         .unit-btn {
-            width: 100px;
-            height: 120px;
+            width: 80px;
+            height: 100px;
             border: 2px solid #95a5a6;
-            border-radius: 10px;
+            border-radius: 8px;
             background: linear-gradient(to bottom, #fff, #ecf0f1);
             cursor: pointer;
             display: flex;
@@ -138,34 +164,22 @@
             justify-content: center;
             transition: all 0.1s;
             position: relative;
-            box-shadow: 0 6px 0 #7f8c8d;
+            box-shadow: 0 4px 0 #7f8c8d;
             overflow: hidden;
         }
 
-        .unit-btn:active {
-            transform: translateY(4px);
-            box-shadow: 0 2px 0 #7f8c8d;
-        }
-        
-        .unit-btn.disabled {
-            filter: grayscale(100%);
-            opacity: 0.6;
-            cursor: not-allowed;
-            background: #bdc3c7;
-        }
-
-        .unit-icon { font-size: 40px; margin-bottom: 5px; text-shadow: 2px 2px 0 rgba(0,0,0,0.1); }
-        .unit-name { font-size: 15px; font-weight: 800; color: #2c3e50; }
+        .unit-btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #7f8c8d; }
+        .unit-btn.disabled { filter: grayscale(100%); opacity: 0.6; cursor: not-allowed; background: #bdc3c7; }
+        .unit-icon { font-size: 32px; margin-bottom: 2px; }
+        .unit-name { font-size: 12px; font-weight: 800; color: #2c3e50; }
         .unit-cost { 
-            background: gold; color: #d35400; padding: 2px 8px; 
-            border-radius: 4px; font-size: 14px; border: 1px solid #e67e22;
-            margin-top: 4px; font-weight: bold;
+            background: gold; color: #d35400; padding: 1px 6px; 
+            border-radius: 4px; font-size: 12px; border: 1px solid #e67e22;
+            margin-top: 2px; font-weight: bold;
         }
-        .hotkey {
-            position: absolute; top: 2px; right: 5px; font-size: 12px; color: #7f8c8d; font-weight: bold;
-        }
+        .hotkey { position: absolute; top: 2px; right: 5px; font-size: 10px; color: #7f8c8d; }
 
-        /* Login & Result */
+        /* Screens */
         #login-screen, #result-screen {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(44, 62, 80, 0.98);
@@ -173,90 +187,88 @@
             justify-content: center; align-items: center;
             color: white; z-index: 100;
         }
-
         .panel-box {
-            background: #fff; padding: 50px; border-radius: 20px;
+            background: #fff; padding: 40px; border-radius: 20px;
             text-align: center; color: #2c3e50;
             border: 6px solid var(--primary-color);
             width: 450px;
             box-shadow: 0 20px 50px rgba(0,0,0,0.5);
         }
-
         input {
             padding: 15px; font-size: 20px; width: 80%;
             margin: 20px 0; text-align: center; border: 2px solid #bdc3c7; border-radius: 8px;
         }
-
         button.start-btn {
             background: var(--secondary-color); color: white; border: none;
             padding: 15px 50px; font-size: 24px; border-radius: 40px;
-            cursor: pointer; transition: 0.3s;
-            box-shadow: 0 6px 0 #922b21;
+            cursor: pointer; transition: 0.3s; box-shadow: 0 6px 0 #922b21;
         }
         button.start-btn:hover { transform: translateY(-3px); box-shadow: 0 9px 0 #922b21; }
-        button.start-btn:active { transform: translateY(3px); box-shadow: 0 3px 0 #922b21; }
 
         /* Message */
         #message-area {
-            position: absolute; top: 35%; left: 50%;
+            position: absolute; top: 40%; left: 50%;
             transform: translate(-50%, -50%);
             background: rgba(0,0,0,0.85); color: #fff;
-            padding: 20px 50px; border-radius: 50px;
-            font-size: 36px; font-weight: bold;
+            padding: 15px 40px; border-radius: 50px;
+            font-size: 28px; font-weight: bold;
             display: none; pointer-events: none;
-            z-index: 50; border: 4px solid gold;
-            text-shadow: 0 2px 4px black;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            z-index: 50; border: 3px solid gold;
         }
     </style>
 </head>
 <body>
 
-    <!-- 1. 登入畫面 -->
     <div id="login-screen">
         <div class="panel-box">
             <h1 style="font-size: 48px; margin-bottom: 20px;">⚔️ 三國策略攻防戰</h1>
-            <p style="font-size: 18px; color: #7f8c8d;">號令三軍，一統天下！(音效版)</p>
+            <p style="font-size: 18px; color: #7f8c8d;">全3D視角・自由縮放</p>
             <input type="text" id="player-name" placeholder="請輸入將軍大名" maxlength="10">
             <button class="start-btn" onclick="Game.initLogin()">出征</button>
         </div>
     </div>
 
-    <!-- 2. 遊戲主畫面 -->
     <div id="game-container">
         <canvas id="gameCanvas" width="1200" height="800"></canvas>
         
         <div id="ui-layer">
             <div id="top-bar" class="hud-panel">
-                <div style="display:flex; flex-direction:column; align-items:flex-start;">
-                    <span style="color:var(--enemy-color); font-size:16px; margin-bottom:5px;">🚩 敵軍大營 (魏) <span id="enemy-stats-hint" style="font-size:12px;color:#e74c3c;"></span></span>
+                <div style="display:flex; align-items:center;">
+                    <span style="color:var(--enemy-color); margin-right:5px;">🚩 敵營</span>
                     <div class="hp-bar-container">
                         <div id="enemy-hp-bar" class="hp-bar-fill" style="width: 100%; background: linear-gradient(to right, #e74c3c, #c0392b);"></div>
                     </div>
+                    <span id="enemy-stats-hint" style="font-size:12px;color:#e74c3c; margin-left:5px;"></span>
                 </div>
 
-                <div style="text-align:center;">
-                    <div id="wave-info" style="font-size:28px; color:var(--primary-color); text-shadow: 1px 1px 0 #333; font-weight:900;">第 1 關</div>
-                    <div style="font-size:20px; margin-top:5px; background:rgba(0,0,0,0.1); padding:2px 10px; border-radius:10px;">💰 <span id="gold" style="color:#d35400;">0</span></div>
+                <div style="text-align:center; min-width: 150px;">
+                    <div id="wave-info" style="font-size:20px; color:var(--primary-color); font-weight:900;">第 1 關</div>
+                    <div style="font-size:16px;">💰 <span id="gold" style="color:#d35400;">0</span></div>
                 </div>
 
-                <div style="display:flex; flex-direction:column; align-items:flex-end;">
-                    <span style="color:var(--player-color); font-size:16px; margin-bottom:5px;">🛡️ 我軍城池 (蜀)</span>
+                <div style="display:flex; align-items:center;">
+                    <span style="color:var(--player-color); margin-right:5px;">🛡️ 我城</span>
                     <div class="hp-bar-container">
                         <div id="player-hp-bar" class="hp-bar-fill" style="width: 100%; background: linear-gradient(to right, #3498db, #2980b9);"></div>
                     </div>
                 </div>
             </div>
 
+            <!-- 鏡頭控制面板 -->
+            <div id="cam-controls">
+                <div class="cam-btn" onclick="Game.camera.zoomIn()" title="放大 (+)">➕</div>
+                <div class="cam-btn" onclick="Game.camera.zoomOut()" title="縮小 (-)">➖</div>
+                <div class="cam-btn" onclick="Game.camera.rotate(-0.1)" title="左旋轉 (Q)">↺</div>
+                <div class="cam-btn" onclick="Game.camera.rotate(0.1)" title="右旋轉 (E)">↻</div>
+                <div class="cam-btn" onclick="Game.camera.reset()" title="重置視角 (R)">🎯</div>
+            </div>
+
             <div id="message-area">戰鬥開始！</div>
 
-            <div id="bottom-bar" class="hud-panel">
-                <!-- 兵種按鈕由 JS 動態生成 -->
-            </div>
+            <div id="bottom-bar" class="hud-panel"></div>
         </div>
     </div>
 
-    <!-- 3. 結算畫面 -->
     <div id="result-screen" style="display: none;">
         <div class="panel-box">
             <h1 id="end-title" style="font-size: 48px;">戰役結束</h1>
@@ -271,7 +283,7 @@
 
 <script>
 /**
- * 音效管理器 (Web Audio API)
+ * 音效管理器
  */
 const AudioSys = {
     ctx: null,
@@ -279,15 +291,13 @@ const AudioSys = {
         if (!this.ctx) {
             this.ctx = new (window.AudioContext || window.webkitAudioContext)();
         }
-        if (this.ctx.state === 'suspended') {
-            this.ctx.resume();
-        }
+        if (this.ctx.state === 'suspended') this.ctx.resume();
     },
     playTone: function(freq, type, duration, vol = 0.1) {
         if (!this.ctx) return;
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
-        osc.type = type; // sine, square, sawtooth, triangle
+        osc.type = type;
         osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
         gain.gain.setValueAtTime(vol, this.ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
@@ -296,83 +306,124 @@ const AudioSys = {
         osc.start();
         osc.stop(this.ctx.currentTime + duration);
     },
-    playNoise: function(duration, vol = 0.1) {
-        if (!this.ctx) return;
-        const bufferSize = this.ctx.sampleRate * duration;
-        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-        const data = buffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) {
-            data[i] = Math.random() * 2 - 1;
-        }
-        const noise = this.ctx.createBufferSource();
-        noise.buffer = buffer;
-        const gain = this.ctx.createGain();
-        gain.gain.setValueAtTime(vol, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
-        noise.connect(gain);
-        gain.connect(this.ctx.destination);
-        noise.start();
-    },
-    // 音效庫
     sfx: {
         spawn: () => AudioSys.playTone(400, 'triangle', 0.1, 0.1),
-        attack_melee: () => AudioSys.playNoise(0.1, 0.05),
+        attack_melee: () => AudioSys.playTone(100, 'sawtooth', 0.1, 0.05),
         attack_range: () => AudioSys.playTone(800, 'sine', 0.1, 0.05),
-        hit: () => AudioSys.playNoise(0.1, 0.1),
-        win_level: () => {
-            if(!AudioSys.ctx) return;
-            // 勝利和弦
-            [440, 554, 659].forEach((f, i) => setTimeout(() => AudioSys.playTone(f, 'square', 0.4, 0.1), i * 100));
-        },
-        game_over: () => {
-             if(!AudioSys.ctx) return;
-             [300, 250, 200].forEach((f, i) => setTimeout(() => AudioSys.playTone(f, 'sawtooth', 0.5, 0.1), i * 300));
-        }
+        hit: () => AudioSys.playTone(150, 'square', 0.1, 0.05),
+        win_level: () => { if(AudioSys.ctx) [440, 554, 659].forEach((f, i) => setTimeout(() => AudioSys.playTone(f, 'square', 0.4, 0.1), i * 100)); },
+        game_over: () => { if(AudioSys.ctx) [300, 250, 200].forEach((f, i) => setTimeout(() => AudioSys.playTone(f, 'sawtooth', 0.5, 0.1), i * 300)); }
     }
 };
 
 /**
- * 3D 繪圖輔助: 強化版圓柱體 (漸層 + 陰影)
+ * 鏡頭系統 (負責座標轉換)
  */
-function drawCylinder(ctx, x, y, radius, height, color, sideColor) {
-    // 1. 底部陰影 (讓物體浮在地上)
+class Camera {
+    constructor(width, height) {
+        this.width = width;
+        this.height = height;
+        this.x = width / 2;
+        this.y = height / 2;
+        this.zoom = 1;
+        this.angle = 0; // 旋轉角度 (弧度)
+        this.dragStart = null;
+    }
+
+    // 將世界座標轉換為螢幕座標
+    toScreen(x, y) {
+        // 1. 相對於鏡頭中心的位移
+        let dx = x - this.x;
+        let dy = y - this.y;
+
+        // 2. 旋轉
+        let cos = Math.cos(this.angle);
+        let sin = Math.sin(this.angle);
+        let rx = dx * cos - dy * sin;
+        let ry = dx * sin + dy * cos;
+
+        // 3. 縮放並加上螢幕中心偏移
+        return {
+            x: this.width / 2 + rx * this.zoom,
+            y: this.height / 2 + ry * this.zoom,
+            scale: this.zoom
+        };
+    }
+
+    // 控制功能
+    zoomIn() { this.zoom = Math.min(this.zoom * 1.1, 3); }
+    zoomOut() { this.zoom = Math.max(this.zoom / 1.1, 0.5); }
+    rotate(rad) { this.angle += rad; }
+    reset() { this.zoom = 1; this.angle = 0; this.x = this.width/2; this.y = this.height/2; }
+    
+    // 拖曳邏輯
+    handleMouseDown(e) { this.dragStart = { x: e.clientX, y: e.clientY, camX: this.x, camY: this.y }; }
+    handleMouseMove(e) {
+        if (!this.dragStart) return;
+        const dx = (e.clientX - this.dragStart.x) / this.zoom;
+        const dy = (e.clientY - this.dragStart.y) / this.zoom;
+        
+        // 逆旋轉位移量，確保拖曳方向符合視覺
+        let cos = Math.cos(-this.angle);
+        let sin = Math.sin(-this.angle);
+        
+        this.x = this.dragStart.camX - (dx * cos - dy * sin);
+        this.y = this.dragStart.camY - (dx * sin + dy * cos);
+    }
+    handleMouseUp() { this.dragStart = null; }
+    handleWheel(e) {
+        e.preventDefault();
+        if (e.deltaY < 0) this.zoomIn(); else this.zoomOut();
+    }
+}
+
+/**
+ * 繪圖輔助: 支援旋轉的 3D 圓柱體
+ */
+function drawCylinder3D(ctx, screenPos, radius, height, color, sideColor) {
+    const x = screenPos.x;
+    const y = screenPos.y;
+    const s = screenPos.scale;
+    const r = radius * s;
+    const h = height * s;
+
+    // 因為我們是轉換了中心點，但沒有旋轉 Canvas Context (為了保持 UI/文字正常)，
+    // 所以圓柱體的「高度」永遠是向上的 (Screen Y 負方向)。
+    // 這樣無論地圖怎麼轉，建築物永遠朝向螢幕上方，符合 2.5D 遊戲邏輯。
+
+    // 1. 底部陰影
     ctx.fillStyle = "rgba(0,0,0,0.3)";
     ctx.beginPath();
-    ctx.ellipse(x, y, radius, radius * 0.4, 0, 0, Math.PI * 2);
+    ctx.ellipse(x, y, r, r * 0.4, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // 2. 側面 (使用漸層模擬曲面光影)
-    const gradient = ctx.createLinearGradient(x - radius, y, x + radius, y);
-    gradient.addColorStop(0, sideColor);     // 邊緣深色
-    gradient.addColorStop(0.2, color);       // 亮部
-    gradient.addColorStop(0.5, color);       // 正面
+    // 2. 側面 (漸層)
+    const gradient = ctx.createLinearGradient(x - r, y, x + r, y);
+    gradient.addColorStop(0, sideColor);
+    gradient.addColorStop(0.2, color);
+    gradient.addColorStop(0.5, color);
     gradient.addColorStop(0.8, color);       
-    gradient.addColorStop(1, sideColor);     // 邊緣深色
+    gradient.addColorStop(1, sideColor);
 
     ctx.fillStyle = gradient;
     ctx.beginPath();
-    ctx.moveTo(x - radius, y - height);
-    ctx.lineTo(x + radius, y - height);
-    ctx.lineTo(x + radius, y);
-    ctx.lineTo(x - radius, y);
+    ctx.moveTo(x - r, y - h);
+    ctx.lineTo(x + r, y - h);
+    ctx.lineTo(x + r, y);
+    ctx.lineTo(x - r, y);
     ctx.closePath();
     ctx.fill();
+    ctx.strokeStyle = "rgba(0,0,0,0.1)"; ctx.lineWidth = 1; ctx.stroke();
 
-    // 側面邊框線 (增強輪廓)
-    ctx.strokeStyle = "rgba(0,0,0,0.1)";
-    ctx.lineWidth = 1;
-    ctx.stroke();
-
-    // 3. 頂部 (稍微亮一點)
+    // 3. 頂部
     ctx.fillStyle = color;
     ctx.beginPath();
-    ctx.ellipse(x, y - height, radius, radius * 0.4, 0, 0, Math.PI * 2);
+    ctx.ellipse(x, y - h, r, r * 0.4, 0, 0, Math.PI * 2);
     ctx.fill();
-    
-    // 頂部高光
-    ctx.fillStyle = "rgba(255,255,255,0.1)";
+    // 高光
+    ctx.fillStyle = "rgba(255,255,255,0.15)";
     ctx.beginPath();
-    ctx.ellipse(x, y - height, radius * 0.8, radius * 0.3, 0, 0, Math.PI * 2);
+    ctx.ellipse(x, y - h, r * 0.8, r * 0.3, 0, 0, Math.PI * 2);
     ctx.fill();
 }
 
@@ -381,8 +432,7 @@ function drawCylinder(ctx, x, y, radius, height, color, sideColor) {
  */
 const CONFIG = {
     gridSize: 80, 
-    width: 15,
-    height: 10,
+    width: 15, height: 10,
     gasUrl: 'https://script.google.com/macros/s/AKfycbwqZFv8Jzk4A1ERYbzljRudebPBTlBn4OcSsFWfWBGLTIKGSMDEd3focinsGovte4c9/exec'
 };
 
@@ -424,27 +474,32 @@ class GameEngine {
         this.canvas = document.getElementById('gameCanvas');
         this.ctx = this.canvas.getContext('2d');
         this.player = { name: '', id: '', score: 0 };
+        this.camera = new Camera(1200, 800);
         
         this.gameState = {
-            level: 0,
-            gold: 0,
-            baseHpPlayer: 1000,
-            baseHpEnemy: 1000,
-            maxBaseHp: 1000,
-            isGameOver: false,
-            enemySpawnTimer: 0,
-            // 關鍵修正：防止關卡結束時連續觸發
-            isLevelTransitioning: false
+            level: 0, gold: 0,
+            baseHpPlayer: 1000, baseHpEnemy: 1000, maxBaseHp: 1000,
+            isGameOver: false, enemySpawnTimer: 0, isLevelTransitioning: false
         };
 
-        this.units = []; 
-        this.projectiles = [];
-        this.particles = [];
-        this.pathPixels = [];
-        
+        this.units = []; this.projectiles = []; this.particles = []; this.pathPixels = [];
         this.lastTime = 0;
         this.cooldowns = {}; 
         this.createUnitButtons();
+
+        // 綁定鏡頭事件
+        const container = document.getElementById('game-container');
+        container.addEventListener('mousedown', e => this.camera.handleMouseDown(e));
+        window.addEventListener('mousemove', e => this.camera.handleMouseMove(e));
+        window.addEventListener('mouseup', () => this.camera.handleMouseUp());
+        container.addEventListener('wheel', e => this.camera.handleWheel(e));
+        
+        // 綁定鍵盤旋轉
+        document.addEventListener('keydown', e => {
+            if (e.key === 'q' || e.key === 'Q') this.camera.rotate(-0.1);
+            if (e.key === 'e' || e.key === 'E') this.camera.rotate(0.1);
+            if (e.key === 'r' || e.key === 'R') this.camera.reset();
+        });
     }
 
     createUnitButtons() {
@@ -467,143 +522,97 @@ class GameEngine {
             bar.appendChild(div);
             this.cooldowns[key] = 0;
         });
-
         document.addEventListener('keydown', (e) => {
             const idx = parseInt(e.key) - 1;
-            if (idx >= 0 && idx < keys.length) {
-                this.spawnPlayerUnit(keys[idx]);
-            }
+            if (idx >= 0 && idx < keys.length) this.spawnPlayerUnit(keys[idx]);
         });
     }
 
     initLogin() {
         const name = document.getElementById('player-name').value.trim();
         if (!name) return alert("請輸入大名！");
-        this.player.name = name;
-        this.player.id = 'ID_' + Date.now();
-        this.player.startTime = Date.now();
-        
-        // 啟動音效引擎
+        this.player.name = name; this.player.id = 'ID_' + Date.now(); this.player.startTime = Date.now();
         AudioSys.init();
-        
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('game-container').style.display = 'block';
-        
         this.startLevel(0);
         this.gameLoop(0);
     }
 
     startLevel(lvl) {
-        // 重置轉場狀態
         this.gameState.isLevelTransitioning = false;
-
-        if (lvl >= LEVELS.length) {
-            AudioSys.sfx.win_level();
-            return this.endGame(true, "天下統一！三國歸一！");
-        }
+        if (lvl >= LEVELS.length) { AudioSys.sfx.win_level(); return this.endGame(true, "天下統一！三國歸一！"); }
         
         this.gameState.level = lvl;
+        this.camera.reset(); // 每關重置視角
         
-        // 地圖
         const mapPoints = MAPS[lvl % MAPS.length];
         this.pathPixels = mapPoints.map(p => ({
             x: p.x * CONFIG.gridSize + CONFIG.gridSize/2,
             y: p.y * CONFIG.gridSize + CONFIG.gridSize/2
         }));
 
-        // 難度
         const lvlConfig = LEVELS[lvl];
         this.gameState.maxBaseHp = 1000 + (lvl * 1000); 
         this.gameState.baseHpEnemy = this.gameState.maxBaseHp * lvlConfig.statsMultiplier; 
         this.gameState.baseHpPlayer = 1000 + (lvl * 200);
         
-        if (lvl === 0) {
-            this.gameState.gold = 500;
-        } else {
+        if (lvl === 0) this.gameState.gold = 500;
+        else {
             const bonus = 1000 + (lvl * 500);
             this.gameState.gold += bonus;
             this.showMessage(`獲得凱旋獎金 $${bonus}！`, false);
         }
 
-        this.units = [];
-        this.projectiles = [];
-        this.particles = [];
-        this.gameState.enemySpawnTimer = 0; // 重置出兵計時
-        
+        this.units = []; this.projectiles = []; this.particles = []; this.gameState.enemySpawnTimer = 0;
         this.updateUI();
-        
-        const enemyStatsText = `(強度: ${Math.round(lvlConfig.statsMultiplier * 100)}%)`;
-        document.getElementById('enemy-stats-hint').innerText = enemyStatsText;
-        
-        setTimeout(() => {
-            AudioSys.sfx.win_level(); // 用勝利音效當作開場號角
-            this.showMessage(`第 ${lvl+1} 關 - 進攻！`);
-        }, 500);
+        document.getElementById('enemy-stats-hint').innerText = `(強度: ${Math.round(lvlConfig.statsMultiplier * 100)}%)`;
+        setTimeout(() => { AudioSys.sfx.win_level(); this.showMessage(`第 ${lvl+1} 關 - 進攻！`); }, 500);
     }
 
     spawnPlayerUnit(typeKey) {
         if (this.gameState.isLevelTransitioning || this.gameState.isGameOver) return;
-
         const data = UNIT_TYPES[typeKey];
-        if (this.gameState.gold < data.cost) {
-            this.showMessage("軍費不足", true);
-            return;
-        }
+        if (this.gameState.gold < data.cost) return this.showMessage("軍費不足", true);
         if (this.cooldowns[typeKey] > 0) return;
 
-        this.gameState.gold -= data.cost;
-        this.cooldowns[typeKey] = data.cd; 
-        
-        AudioSys.sfx.spawn(); // 音效
-
+        this.gameState.gold -= data.cost; this.cooldowns[typeKey] = data.cd; 
+        AudioSys.sfx.spawn();
         const startNode = this.pathPixels[this.pathPixels.length - 1];
-        const unit = new Unit(startNode.x, startNode.y, 'player', typeKey, this.pathPixels.length - 1, 1, 1);
-        this.units.push(unit);
+        this.units.push(new Unit(startNode.x, startNode.y, 'player', typeKey, this.pathPixels.length - 1, 1, 1));
         this.updateUI();
     }
 
     spawnEnemyUnit() {
         if (this.gameState.isLevelTransitioning) return;
-
         const lvlData = LEVELS[this.gameState.level];
         const types = lvlData.enemyTypes;
         const randType = types[Math.floor(Math.random() * types.length)];
-        
         const startNode = this.pathPixels[0];
-        const unit = new Unit(startNode.x, startNode.y, 'enemy', randType, 0, lvlData.statsMultiplier, lvlData.speedMultiplier);
-        this.units.push(unit);
+        this.units.push(new Unit(startNode.x, startNode.y, 'enemy', randType, 0, lvlData.statsMultiplier, lvlData.speedMultiplier));
     }
 
     gameLoop(timestamp) {
         if (this.gameState.isGameOver) return;
         if (!this.lastTime) this.lastTime = timestamp;
         const dt = timestamp - this.lastTime;
-
-        if (dt > 16) {
-            this.update();
-            this.draw();
-            this.lastTime = timestamp;
-        }
+        if (dt > 16) { this.update(); this.draw(); this.lastTime = timestamp; }
         requestAnimationFrame((t) => this.gameLoop(t));
     }
 
     update() {
         const lvlData = LEVELS[this.gameState.level];
-
-        // 資源
         if (!this.gameState.isLevelTransitioning) {
             this.gameState.gold += lvlData.goldRate * 0.5; 
             if (this.gameState.gold > 20000) this.gameState.gold = 20000;
         }
 
-        // 敵軍生成
         this.gameState.enemySpawnTimer++;
         if (this.gameState.enemySpawnTimer > lvlData.enemySpawnRate) {
             this.spawnEnemyUnit();
             this.gameState.enemySpawnTimer = 0;
         }
 
-        // 冷卻
         for (let key in this.cooldowns) {
             if (this.cooldowns[key] > 0) this.cooldowns[key]--;
             const btn = document.getElementById(`btn-${key}`);
@@ -611,17 +620,12 @@ class GameEngine {
                 const overlay = btn.querySelector('.cooldown-overlay');
                 const percent = (this.cooldowns[key] / UNIT_TYPES[key].cd) * 100;
                 overlay.style.height = `${percent}%`;
-                if(percent <= 0 && this.gameState.gold < UNIT_TYPES[key].cost) {
-                     btn.classList.add('disabled');
-                } else {
-                     btn.classList.remove('disabled');
-                }
+                if(percent <= 0 && this.gameState.gold < UNIT_TYPES[key].cost) btn.classList.add('disabled');
+                else btn.classList.remove('disabled');
             }
         }
 
-        // 單位
         this.units.sort((a, b) => a.y - b.y);
-
         for (let i = this.units.length - 1; i >= 0; i--) {
             const u = this.units[i];
             u.update(this);
@@ -634,110 +638,112 @@ class GameEngine {
             }
         }
 
-        // 子彈
         for (let i = this.projectiles.length - 1; i >= 0; i--) {
             const p = this.projectiles[i];
             p.update();
             if (p.hit) this.projectiles.splice(i, 1);
         }
 
-        // 粒子
         this.particles = this.particles.filter(p => p.life > 0);
         this.particles.forEach(p => p.update());
-
         this.updateUI();
 
-        // 勝負判定
         if (this.gameState.baseHpPlayer <= 0 && !this.gameState.isGameOver) {
-            AudioSys.sfx.game_over();
-            this.endGame(false, "城池陷落，勝敗乃兵家常事...");
+            AudioSys.sfx.game_over(); this.endGame(false, "城池陷落，勝敗乃兵家常事...");
         }
-
-        // 勝利判斷 (修正無限循環 Bug)
         if (this.gameState.baseHpEnemy <= 0 && !this.gameState.isLevelTransitioning) {
-            this.gameState.baseHpEnemy = 0;
-            this.gameState.isLevelTransitioning = true; // 鎖定狀態
-            
-            AudioSys.sfx.win_level();
-            this.showMessage("敵營攻破！全軍整備，前往下一戰場...", false);
-            
-            // 清除所有子彈與攻擊行為
+            this.gameState.baseHpEnemy = 0; this.gameState.isLevelTransitioning = true;
+            AudioSys.sfx.win_level(); this.showMessage("敵營攻破！全軍整備...", false);
             this.units.forEach(u => u.state = 'move');
-            
-            setTimeout(() => {
-                 this.startLevel(this.gameState.level + 1);
-            }, 3000);
+            setTimeout(() => { this.startLevel(this.gameState.level + 1); }, 3000);
         }
     }
 
     draw() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
+        // 1. 繪製世界網格 (需變換)
+        this.drawGrid();
+
+        // 2. 繪製路徑 (需變換)
         this.drawPath();
 
         const start = this.pathPixels[0];
         const end = this.pathPixels[this.pathPixels.length-1];
         
-        // 敵方基地 (3D 強化)
+        // 3. 繪製基地 (使用 3D 投影)
+        const startPos = this.camera.toScreen(start.x, start.y);
+        const endPos = this.camera.toScreen(end.x, end.y);
         const enemyScale = 1 + (this.gameState.level * 0.1);
-        drawCylinder(this.ctx, start.x, start.y, 50 * enemyScale, 80 * enemyScale, '#e74c3c', '#c0392b');
-        this.drawText(start.x, start.y - 100 * enemyScale, `敵營 Lv.${this.gameState.level+1}`, "24px Arial", "#fff");
         
-        // 我方基地 (3D 強化)
-        drawCylinder(this.ctx, end.x, end.y, 50, 80, '#3498db', '#2980b9');
-        this.drawText(end.x, end.y - 100, "我城", "24px Arial", "#fff");
+        drawCylinder3D(this.ctx, startPos, 50 * enemyScale, 80 * enemyScale, '#e74c3c', '#c0392b');
+        this.drawText(startPos.x, startPos.y - (100 * enemyScale * startPos.scale), `敵營 Lv.${this.gameState.level+1}`, "24px Arial", "#fff");
+        
+        drawCylinder3D(this.ctx, endPos, 50, 80, '#3498db', '#2980b9');
+        this.drawText(endPos.x, endPos.y - (100 * endPos.scale), "我城", "24px Arial", "#fff");
 
-        this.units.forEach(u => u.draw(this.ctx));
-        this.projectiles.forEach(p => p.draw(this.ctx));
-        this.particles.forEach(p => p.draw(this.ctx));
+        // 4. 繪製單位與特效
+        this.units.forEach(u => u.draw(this.ctx, this.camera));
+        this.projectiles.forEach(p => p.draw(this.ctx, this.camera));
+        this.particles.forEach(p => p.draw(this.ctx, this.camera));
+    }
+
+    drawGrid() {
+        // 簡單繪製一個大背景框表示邊界
+        const tl = this.camera.toScreen(0, 0);
+        const br = this.camera.toScreen(CONFIG.width * CONFIG.gridSize, CONFIG.height * CONFIG.gridSize);
+        // 這邊簡化處理，只畫邊框，網格若要旋轉需要複雜運算
+        this.ctx.strokeStyle = "rgba(0,0,0,0.1)";
+        this.ctx.lineWidth = 2;
+        this.ctx.beginPath();
+        
+        // 繪製四個角
+        const p1 = this.camera.toScreen(0, 0);
+        const p2 = this.camera.toScreen(1200, 0);
+        const p3 = this.camera.toScreen(1200, 800);
+        const p4 = this.camera.toScreen(0, 800);
+        
+        this.ctx.moveTo(p1.x, p1.y);
+        this.ctx.lineTo(p2.x, p2.y);
+        this.ctx.lineTo(p3.x, p3.y);
+        this.ctx.lineTo(p4.x, p4.y);
+        this.ctx.closePath();
+        this.ctx.stroke();
+        
+        // 填充草地紋理
+        this.ctx.fillStyle = "rgba(169, 223, 191, 0.3)";
+        this.ctx.fill();
     }
 
     drawPath() {
-        this.ctx.lineCap = 'round';
-        this.ctx.lineJoin = 'round';
+        this.ctx.lineCap = 'round'; this.ctx.lineJoin = 'round';
         
-        // 路徑陰影 (厚度感)
-        this.ctx.lineWidth = 70;
-        this.ctx.strokeStyle = '#a08d85'; // 深色泥土
+        // 路徑路面
+        this.ctx.lineWidth = 70 * this.camera.zoom;
+        this.ctx.strokeStyle = '#e6d0ce'; 
         this.ctx.beginPath();
         if (this.pathPixels.length > 0) {
-            this.ctx.moveTo(this.pathPixels[0].x, this.pathPixels[0].y + 8);
+            const start = this.camera.toScreen(this.pathPixels[0].x, this.pathPixels[0].y);
+            this.ctx.moveTo(start.x, start.y);
             for (let i = 1; i < this.pathPixels.length; i++) {
-                this.ctx.lineTo(this.pathPixels[i].x, this.pathPixels[i].y + 8);
-            }
-        }
-        this.ctx.stroke();
-
-        // 路面
-        this.ctx.lineWidth = 70;
-        this.ctx.strokeStyle = '#e6d0ce'; // 淺色路面
-        this.ctx.beginPath();
-        if (this.pathPixels.length > 0) {
-            this.ctx.moveTo(this.pathPixels[0].x, this.pathPixels[0].y);
-            for (let i = 1; i < this.pathPixels.length; i++) {
-                this.ctx.lineTo(this.pathPixels[i].x, this.pathPixels[i].y);
+                const p = this.camera.toScreen(this.pathPixels[i].x, this.pathPixels[i].y);
+                this.ctx.lineTo(p.x, p.y);
             }
         }
         this.ctx.stroke();
     }
 
     drawText(x, y, text, font, color) {
-        this.ctx.font = font;
-        this.ctx.fillStyle = color;
-        this.ctx.textAlign = "center";
-        this.ctx.shadowColor = "rgba(0,0,0,0.8)";
-        this.ctx.shadowBlur = 4;
-        this.ctx.fillText(text, x, y);
-        this.ctx.shadowBlur = 0;
+        this.ctx.font = font; this.ctx.fillStyle = color;
+        this.ctx.textAlign = "center"; this.ctx.shadowColor = "rgba(0,0,0,0.8)";
+        this.ctx.shadowBlur = 4; this.ctx.fillText(text, x, y); this.ctx.shadowBlur = 0;
     }
 
     updateUI() {
         document.getElementById('gold').innerText = Math.floor(this.gameState.gold);
         document.getElementById('wave-info').innerText = `第 ${this.gameState.level + 1} 關`;
-        
         const pPct = Math.max(0, (this.gameState.baseHpPlayer / (1000 + this.gameState.level * 200)) * 100);
         document.getElementById('player-hp-bar').style.width = `${pPct}%`;
-        
         const enemyMaxHp = (1000 + (this.gameState.level * 1000)) * LEVELS[this.gameState.level].statsMultiplier;
         const ePct = Math.max(0, (this.gameState.baseHpEnemy / enemyMaxHp) * 100);
         document.getElementById('enemy-hp-bar').style.width = `${ePct}%`;
@@ -748,22 +754,14 @@ class GameEngine {
         el.innerText = msg;
         el.style.color = isWarning ? '#e74c3c' : '#fff';
         el.style.borderColor = isWarning ? '#e74c3c' : 'gold';
-        el.style.display = 'block';
-        el.style.opacity = 1;
-        
+        el.style.display = 'block'; el.style.opacity = 1;
         if(this.msgTimeout) clearTimeout(this.msgTimeout);
-        this.msgTimeout = setTimeout(() => {
-            el.style.display = 'none';
-        }, 1500);
+        this.msgTimeout = setTimeout(() => { el.style.display = 'none'; }, 1500);
     }
 
     createEffect(x, y, type) {
-        let color = 'white';
-        if (type === 'hit') color = 'orange';
-        if (type === 'blood') color = 'red';
-        for(let i=0; i<6; i++) {
-            this.particles.push(new Particle(x, y, color));
-        }
+        let color = 'white'; if (type === 'hit') color = 'orange'; if (type === 'blood') color = 'red';
+        for(let i=0; i<6; i++) this.particles.push(new Particle(x, y, color));
     }
 
     endGame(isWin, reason) {
@@ -772,86 +770,42 @@ class GameEngine {
         document.getElementById('end-title').innerText = isWin ? "🏆 大獲全勝" : "💀 戰敗";
         document.getElementById('end-title').style.color = isWin ? "gold" : "#e74c3c";
         document.getElementById('end-reason').innerText = reason;
-        
         const duration = Math.floor((Date.now() - this.player.startTime)/1000);
         document.getElementById('final-score').innerText = this.player.score;
         document.getElementById('final-time').innerText = duration + "s";
-
         this.sendToGas(duration);
     }
 
     sendToGas(duration) {
         if(CONFIG.gasUrl.includes("exec")) {
-            const data = {
-                name: this.player.name,
-                id: this.player.id,
-                score: this.player.score,
-                duration: duration,
-                date: new Date().toISOString()
-            };
-            fetch(CONFIG.gasUrl, {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(data)
-            }).then(() => console.log("Sent to GAS")).catch(e => console.error(e));
+            const data = { name: this.player.name, id: this.player.id, score: this.player.score, duration: duration, date: new Date().toISOString() };
+            fetch(CONFIG.gasUrl, { method: 'POST', mode: 'no-cors', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) }).catch(e => console.error(e));
         }
     }
 }
 
 class Unit {
     constructor(x, y, team, typeKey, pathIdx, statsMult = 1, speedMult = 1) {
-        this.x = x;
-        this.y = y;
-        this.team = team; 
-        this.typeKey = typeKey;
-        
+        this.x = x; this.y = y; this.team = team; this.typeKey = typeKey;
         const data = UNIT_TYPES[typeKey];
-        this.name = data.name;
-        this.maxHp = data.hp * statsMult;
-        this.hp = this.maxHp;
-        this.atk = data.atk * statsMult;
-        this.range = data.range;
-        this.speed = data.speed * speedMult;
-        
-        this.attackType = data.type; 
-        this.icon = data.icon;
-        this.color = data.color;
-
-        this.pathIndex = pathIdx;
-        this.targetNode = null;
-        this.state = 'move'; 
-        this.attackCooldown = 0;
-        this.dead = false;
-        
-        this.visualHeight = (typeKey === 'general') ? 50 : 30;
-        this.bounce = 0;
-        this.scaleY = 0.9; // 3D 壓扁效果
+        this.name = data.name; this.maxHp = data.hp * statsMult; this.hp = this.maxHp;
+        this.atk = data.atk * statsMult; this.range = data.range; this.speed = data.speed * speedMult;
+        this.attackType = data.type; this.icon = data.icon; this.color = data.color;
+        this.pathIndex = pathIdx; this.state = 'move'; this.attackCooldown = 0; this.dead = false;
+        this.visualHeight = (typeKey === 'general') ? 50 : 30; this.bounce = 0;
     }
 
     update(game) {
         if (this.dead) return;
-
         if (this.attackCooldown > 0) this.attackCooldown--;
-
         let target = this.findTarget(game);
-        
         if (target) {
             this.state = 'attack';
-            if (this.attackCooldown <= 0) {
-                this.attack(target, game);
-                this.attackCooldown = 60; 
-            }
+            if (this.attackCooldown <= 0) { this.attack(target, game); this.attackCooldown = 60; }
         } else {
-            this.state = 'move';
-            this.move(game);
+            this.state = 'move'; this.move(game);
         }
-
-        if (this.state === 'move') {
-            this.bounce = Math.abs(Math.sin(Date.now() / 150)) * 5;
-        } else {
-            this.bounce = 0;
-        }
+        if (this.state === 'move') this.bounce = Math.abs(Math.sin(Date.now() / 150)) * 5; else this.bounce = 0;
     }
 
     findTarget(game) {
@@ -885,98 +839,72 @@ class Unit {
                 if (target.team === 'player') game.gameState.baseHpPlayer -= this.atk;
                 else game.gameState.baseHpEnemy -= this.atk;
                 game.createEffect(this.x, this.y, 'hit'); 
-            } else {
-                target.takeDamage(this.atk, game);
-            }
+            } else { target.takeDamage(this.atk, game); }
         }
     }
 
     move(game) {
         let nextIdx = (this.team === 'player') ? this.pathIndex - 1 : this.pathIndex + 1;
-        
-        if (nextIdx < 0 || nextIdx >= game.pathPixels.length) {
-            return; 
-        }
-
+        if (nextIdx < 0 || nextIdx >= game.pathPixels.length) return;
         const targetNode = game.pathPixels[nextIdx];
-        const dx = targetNode.x - this.x;
-        const dy = targetNode.y - this.y;
+        const dx = targetNode.x - this.x; const dy = targetNode.y - this.y;
         const dist = Math.hypot(dx, dy);
-
-        if (dist <= this.speed) {
-            this.x = targetNode.x;
-            this.y = targetNode.y;
-            this.pathIndex = nextIdx;
-        } else {
-            this.x += (dx / dist) * this.speed;
-            this.y += (dy / dist) * this.speed;
-        }
+        if (dist <= this.speed) { this.x = targetNode.x; this.y = targetNode.y; this.pathIndex = nextIdx; }
+        else { this.x += (dx / dist) * this.speed; this.y += (dy / dist) * this.speed; }
     }
 
     takeDamage(amount, game) {
-        this.hp -= amount;
-        game.createEffect(this.x, this.y - this.visualHeight, 'blood');
-        if (this.hp <= 0) {
-            this.dead = true;
-            AudioSys.sfx.hit();
-        }
+        this.hp -= amount; game.createEffect(this.x, this.y - this.visualHeight, 'blood');
+        if (this.hp <= 0) { this.dead = true; AudioSys.sfx.hit(); }
     }
 
-    draw(ctx) {
-        const drawY = this.y - this.visualHeight - this.bounce;
+    draw(ctx, camera) {
+        // 取得轉換後的螢幕座標
+        const pos = camera.toScreen(this.x, this.y);
+        const s = pos.scale;
+        const drawY = pos.y - (this.visualHeight * s) - (this.bounce * s);
 
-        // 3D 陰影 (半透明黑色橢圓)
+        // 3D 投影繪製
+        // 腳底陰影
         ctx.fillStyle = "rgba(0,0,0,0.3)";
         ctx.beginPath();
-        ctx.ellipse(this.x, this.y, 18, 10, 0, 0, Math.PI*2);
+        ctx.ellipse(pos.x, pos.y, 18 * s, 10 * s, 0, 0, Math.PI*2);
         ctx.fill();
 
-        // 身體 (使用 drawCylinder 畫身體更有 3D 感)
-        // 這裡簡化為圓形但加上漸層
-        const grad = ctx.createRadialGradient(this.x - 5, drawY - 5, 2, this.x, drawY, 20);
+        // 身體 (圓球+漸層)
+        const grad = ctx.createRadialGradient(pos.x - 5*s, drawY - 5*s, 2*s, pos.x, drawY, 20*s);
         grad.addColorStop(0, this.color);
-        grad.addColorStop(1, this.team === 'player' ? '#2980b9' : '#c0392b'); // 陰影色
+        grad.addColorStop(1, this.team === 'player' ? '#2980b9' : '#c0392b');
 
         ctx.fillStyle = grad;
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 2 * s;
         ctx.strokeStyle = '#fff';
         
         ctx.beginPath();
-        ctx.arc(this.x, drawY, 22, 0, Math.PI*2);
+        ctx.arc(pos.x, drawY, 22 * s, 0, Math.PI*2);
         ctx.fill();
         ctx.stroke();
 
-        ctx.font = "24px Arial";
+        ctx.font = `${24 * s}px Arial`;
         ctx.fillStyle = "#fff";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.shadowColor = "rgba(0,0,0,0.5)";
-        ctx.shadowBlur = 2;
-        ctx.fillText(this.icon, this.x, drawY);
-        ctx.shadowBlur = 0;
+        ctx.fillText(this.icon, pos.x, drawY);
 
-        // 血條 (更精緻)
+        // 血條
         const hpPct = this.hp / this.maxHp;
-        const barY = drawY - 35;
+        const barY = drawY - (35 * s);
         ctx.fillStyle = "#555";
-        ctx.fillRect(this.x - 18, barY, 36, 6);
+        ctx.fillRect(pos.x - (18 * s), barY, 36 * s, 6 * s);
         ctx.fillStyle = hpPct > 0.5 ? "#2ecc71" : "#e74c3c";
-        ctx.fillRect(this.x - 18, barY, 36 * hpPct, 6);
-        ctx.strokeStyle = "#fff";
-        ctx.lineWidth = 1;
-        ctx.strokeRect(this.x - 18, barY, 36, 6);
+        ctx.fillRect(pos.x - (18 * s), barY, (36 * s) * hpPct, 6 * s);
     }
 }
 
 class Projectile {
     constructor(x, y, target, dmg, team) {
-        this.x = x; this.y = y;
-        this.target = target;
-        this.damage = dmg;
-        this.team = team;
-        this.speed = 12;
-        this.hit = false;
-        
+        this.x = x; this.y = y; this.target = target;
+        this.damage = dmg; this.team = team; this.speed = 12; this.hit = false;
         this.tx = target.x || (team === 'player' ? Game.pathPixels[0].x : Game.pathPixels[Game.pathPixels.length-1].x);
         this.ty = target.y || (team === 'player' ? Game.pathPixels[0].y : Game.pathPixels[Game.pathPixels.length-1].y);
         if(target.visualHeight) this.ty -= target.visualHeight;
@@ -987,31 +915,23 @@ class Projectile {
             this.tx = this.target.x || this.tx;
             this.ty = (this.target.y || this.ty) - (this.target.visualHeight || 30);
         }
-
-        const dx = this.tx - this.x;
-        const dy = this.ty - this.y;
+        const dx = this.tx - this.x; const dy = this.ty - this.y;
         const dist = Math.hypot(dx, dy);
-
         if (dist <= this.speed) {
-            this.hit = true;
-            Game.createEffect(this.tx, this.ty, 'hit');
-            AudioSys.sfx.hit(); // 擊中音效
+            this.hit = true; Game.createEffect(this.tx, this.ty, 'hit'); AudioSys.sfx.hit();
             if (this.target.type === 'base') {
                 if (this.target.team === 'player') Game.gameState.baseHpPlayer -= this.damage;
                 else Game.gameState.baseHpEnemy -= this.damage;
-            } else if (this.target.takeDamage) {
-                this.target.takeDamage(this.damage, Game);
-            }
-        } else {
-            this.x += (dx/dist) * this.speed;
-            this.y += (dy/dist) * this.speed;
-        }
+            } else if (this.target.takeDamage) { this.target.takeDamage(this.damage, Game); }
+        } else { this.x += (dx/dist) * this.speed; this.y += (dy/dist) * this.speed; }
     }
 
-    draw(ctx) {
+    draw(ctx, camera) {
+        const pos = camera.toScreen(this.x, this.y);
+        const s = pos.scale;
         ctx.fillStyle = this.team === 'player' ? '#3498db' : '#e74c3c';
         ctx.beginPath();
-        ctx.arc(this.x, this.y, 6, 0, Math.PI*2);
+        ctx.arc(pos.x, pos.y, 6 * s, 0, Math.PI*2);
         ctx.fill();
     }
 }
@@ -1019,20 +939,16 @@ class Projectile {
 class Particle {
     constructor(x, y, color) {
         this.x = x; this.y = y; this.color = color;
-        this.vx = (Math.random()-0.5)*6;
-        this.vy = (Math.random()-0.5)*6;
-        this.life = 1.0;
-        this.gravity = 0.2;
+        this.vx = (Math.random()-0.5)*6; this.vy = (Math.random()-0.5)*6;
+        this.life = 1.0; this.gravity = 0.2;
     }
-    update() {
-        this.x += this.vx; this.y += this.vy; 
-        this.vy += this.gravity;
-        this.life -= 0.05;
-    }
-    draw(ctx) {
+    update() { this.x += this.vx; this.y += this.vy; this.vy += this.gravity; this.life -= 0.05; }
+    draw(ctx, camera) {
+        const pos = camera.toScreen(this.x, this.y);
+        const s = pos.scale;
         ctx.globalAlpha = Math.max(0, this.life);
         ctx.fillStyle = this.color;
-        ctx.beginPath(); ctx.arc(this.x, this.y, 4, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(pos.x, pos.y, 4 * s, 0, Math.PI*2); ctx.fill();
         ctx.globalAlpha = 1;
     }
 }
