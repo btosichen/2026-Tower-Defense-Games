@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>三國策略攻防戰 (雙向對戰版 - 10關卡制)</title>
+    <title>三國策略攻防戰 (3D音效強化版)</title>
     <style>
         :root {
             --primary-color: #f39c12; /* 三國金 */
@@ -32,7 +32,7 @@
             width: 1200px;
             height: 800px;
             background-color: var(--bg-color);
-            box-shadow: 0 0 30px rgba(0,0,0,0.6);
+            box-shadow: 0 0 50px rgba(0,0,0,0.8);
             border-radius: 12px;
             overflow: hidden;
             display: none;
@@ -49,11 +49,11 @@
         canvas {
             display: block;
             background: #a9dfbf;
+            /* 地面紋理 */
             background-image: 
-                radial-gradient(#88d498 15%, transparent 16%),
-                radial-gradient(#88d498 15%, transparent 16%);
-            background-size: 20px 20px;
-            background-position: 0 0, 10px 10px;
+                linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px);
+            background-size: 80px 80px;
         }
 
         #ui-layer {
@@ -74,7 +74,7 @@
             pointer-events: auto;
             color: #2c3e50;
             font-weight: bold;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            box-shadow: 0 6px 0 rgba(0,0,0,0.2);
         }
 
         /* Top Bar */
@@ -82,7 +82,7 @@
             top: 15px;
             left: 15px;
             right: 15px;
-            height: 60px;
+            height: 70px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -90,36 +90,45 @@
         }
 
         .hp-bar-container {
-            width: 300px;
-            height: 20px;
-            background: #555;
-            border-radius: 10px;
+            width: 320px;
+            height: 24px;
+            background: #34495e;
+            border-radius: 12px;
             overflow: hidden;
-            border: 2px solid #fff;
+            border: 3px solid #fff;
             position: relative;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
         }
 
         .hp-bar-fill {
             height: 100%;
             transition: width 0.2s;
+            position: relative;
+        }
+        
+        .hp-bar-fill::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 50%;
+            background: rgba(255,255,255,0.2);
         }
 
         /* Bottom Bar (Unit Selection) */
         #bottom-bar {
-            bottom: 10px;
+            bottom: 15px;
             left: 50%;
             transform: translateX(-50%);
             display: flex;
-            gap: 10px;
-            padding: 10px 20px;
+            gap: 12px;
+            padding: 15px 30px;
             width: 90%;
             justify-content: center;
         }
 
         .unit-btn {
             width: 100px;
-            height: 110px;
-            border: 3px solid #ccc;
+            height: 120px;
+            border: 2px solid #95a5a6;
             border-radius: 10px;
             background: linear-gradient(to bottom, #fff, #ecf0f1);
             cursor: pointer;
@@ -129,67 +138,75 @@
             justify-content: center;
             transition: all 0.1s;
             position: relative;
-            box-shadow: 0 4px 0 #95a5a6;
+            box-shadow: 0 6px 0 #7f8c8d;
+            overflow: hidden;
         }
 
         .unit-btn:active {
             transform: translateY(4px);
-            box-shadow: 0 0 0 #95a5a6;
+            box-shadow: 0 2px 0 #7f8c8d;
         }
         
         .unit-btn.disabled {
             filter: grayscale(100%);
             opacity: 0.6;
             cursor: not-allowed;
+            background: #bdc3c7;
         }
 
-        .unit-icon { font-size: 36px; margin-bottom: 5px; }
-        .unit-name { font-size: 14px; margin-bottom: 2px; }
+        .unit-icon { font-size: 40px; margin-bottom: 5px; text-shadow: 2px 2px 0 rgba(0,0,0,0.1); }
+        .unit-name { font-size: 15px; font-weight: 800; color: #2c3e50; }
         .unit-cost { 
             background: gold; color: #d35400; padding: 2px 8px; 
             border-radius: 4px; font-size: 14px; border: 1px solid #e67e22;
+            margin-top: 4px; font-weight: bold;
         }
         .hotkey {
-            position: absolute; top: 2px; right: 5px; font-size: 10px; color: #7f8c8d;
+            position: absolute; top: 2px; right: 5px; font-size: 12px; color: #7f8c8d; font-weight: bold;
         }
 
         /* Login & Result */
         #login-screen, #result-screen {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(44, 62, 80, 0.95);
+            background: rgba(44, 62, 80, 0.98);
             display: flex; flex-direction: column;
             justify-content: center; align-items: center;
             color: white; z-index: 100;
         }
 
         .panel-box {
-            background: white; padding: 40px; border-radius: 20px;
+            background: #fff; padding: 50px; border-radius: 20px;
             text-align: center; color: #2c3e50;
-            border: 5px solid var(--primary-color);
-            width: 400px;
+            border: 6px solid var(--primary-color);
+            width: 450px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
         }
 
         input {
-            padding: 10px; font-size: 18px; width: 80%;
-            margin: 20px 0; text-align: center;
+            padding: 15px; font-size: 20px; width: 80%;
+            margin: 20px 0; text-align: center; border: 2px solid #bdc3c7; border-radius: 8px;
         }
 
         button.start-btn {
             background: var(--secondary-color); color: white; border: none;
-            padding: 15px 40px; font-size: 20px; border-radius: 30px;
+            padding: 15px 50px; font-size: 24px; border-radius: 40px;
             cursor: pointer; transition: 0.3s;
+            box-shadow: 0 6px 0 #922b21;
         }
-        button.start-btn:hover { transform: scale(1.05); }
+        button.start-btn:hover { transform: translateY(-3px); box-shadow: 0 9px 0 #922b21; }
+        button.start-btn:active { transform: translateY(3px); box-shadow: 0 3px 0 #922b21; }
 
         /* Message */
         #message-area {
-            position: absolute; top: 30%; left: 50%;
+            position: absolute; top: 35%; left: 50%;
             transform: translate(-50%, -50%);
-            background: rgba(0,0,0,0.8); color: #fff;
-            padding: 20px 40px; border-radius: 10px;
-            font-size: 32px; font-weight: bold;
+            background: rgba(0,0,0,0.85); color: #fff;
+            padding: 20px 50px; border-radius: 50px;
+            font-size: 36px; font-weight: bold;
             display: none; pointer-events: none;
-            z-index: 50; border: 2px solid gold;
+            z-index: 50; border: 4px solid gold;
+            text-shadow: 0 2px 4px black;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
     </style>
 </head>
@@ -198,11 +215,10 @@
     <!-- 1. 登入畫面 -->
     <div id="login-screen">
         <div class="panel-box">
-            <h1>⚔️ 三國策略攻防戰</h1>
-            <p>挑戰 10 大關卡，攻破敵方大營！</p>
-            <input type="text" id="player-name" placeholder="輸入將軍大名" maxlength="10">
+            <h1 style="font-size: 48px; margin-bottom: 20px;">⚔️ 三國策略攻防戰</h1>
+            <p style="font-size: 18px; color: #7f8c8d;">號令三軍，一統天下！(音效版)</p>
+            <input type="text" id="player-name" placeholder="請輸入將軍大名" maxlength="10">
             <button class="start-btn" onclick="Game.initLogin()">出征</button>
-            <p style="font-size:12px; color:#7f8c8d; margin-top:10px;">(記得確認 GAS 已部署)</p>
         </div>
     </div>
 
@@ -213,21 +229,21 @@
         <div id="ui-layer">
             <div id="top-bar" class="hud-panel">
                 <div style="display:flex; flex-direction:column; align-items:flex-start;">
-                    <span style="color:var(--enemy-color); font-size:14px;">敵軍大營 (魏) <span id="enemy-stats-hint" style="font-size:10px;color:#888;"></span></span>
+                    <span style="color:var(--enemy-color); font-size:16px; margin-bottom:5px;">🚩 敵軍大營 (魏) <span id="enemy-stats-hint" style="font-size:12px;color:#e74c3c;"></span></span>
                     <div class="hp-bar-container">
-                        <div id="enemy-hp-bar" class="hp-bar-fill" style="width: 100%; background: #c0392b;"></div>
+                        <div id="enemy-hp-bar" class="hp-bar-fill" style="width: 100%; background: linear-gradient(to right, #e74c3c, #c0392b);"></div>
                     </div>
                 </div>
 
                 <div style="text-align:center;">
-                    <div id="wave-info" style="font-size:24px; color:var(--primary-color);">第 1 關</div>
-                    <div style="font-size:16px;">💰 軍費: <span id="gold" style="color:gold; text-shadow:1px 1px 0 #000;">0</span></div>
+                    <div id="wave-info" style="font-size:28px; color:var(--primary-color); text-shadow: 1px 1px 0 #333; font-weight:900;">第 1 關</div>
+                    <div style="font-size:20px; margin-top:5px; background:rgba(0,0,0,0.1); padding:2px 10px; border-radius:10px;">💰 <span id="gold" style="color:#d35400;">0</span></div>
                 </div>
 
                 <div style="display:flex; flex-direction:column; align-items:flex-end;">
-                    <span style="color:var(--player-color); font-size:14px;">我軍城池 (蜀)</span>
+                    <span style="color:var(--player-color); font-size:16px; margin-bottom:5px;">🛡️ 我軍城池 (蜀)</span>
                     <div class="hp-bar-container">
-                        <div id="player-hp-bar" class="hp-bar-fill" style="width: 100%; background: #2980b9;"></div>
+                        <div id="player-hp-bar" class="hp-bar-fill" style="width: 100%; background: linear-gradient(to right, #3498db, #2980b9);"></div>
                     </div>
                 </div>
             </div>
@@ -243,11 +259,11 @@
     <!-- 3. 結算畫面 -->
     <div id="result-screen" style="display: none;">
         <div class="panel-box">
-            <h1 id="end-title">戰役結束</h1>
-            <p id="end-reason">...</p>
-            <div style="text-align:left; margin: 20px 0;">
-                <div>總分：<span id="final-score">0</span></div>
-                <div>耗時：<span id="final-time">0s</span></div>
+            <h1 id="end-title" style="font-size: 48px;">戰役結束</h1>
+            <p id="end-reason" style="font-size: 20px; color: #555;">...</p>
+            <div style="text-align:left; margin: 30px 0; font-size: 20px; background: #f9f9f9; padding: 20px; border-radius: 10px;">
+                <div style="margin-bottom: 10px;">🏅 總分：<span id="final-score" style="font-weight:bold; color:var(--primary-color);">0</span></div>
+                <div>⏱️ 耗時：<span id="final-time" style="font-weight:bold;">0s</span></div>
             </div>
             <button class="start-btn" onclick="location.reload()">再戰一場</button>
         </div>
@@ -255,10 +271,85 @@
 
 <script>
 /**
- * 繪圖輔助: 畫圓柱體
+ * 音效管理器 (Web Audio API)
+ */
+const AudioSys = {
+    ctx: null,
+    init: function() {
+        if (!this.ctx) {
+            this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (this.ctx.state === 'suspended') {
+            this.ctx.resume();
+        }
+    },
+    playTone: function(freq, type, duration, vol = 0.1) {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = type; // sine, square, sawtooth, triangle
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + duration);
+    },
+    playNoise: function(duration, vol = 0.1) {
+        if (!this.ctx) return;
+        const bufferSize = this.ctx.sampleRate * duration;
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+            data[i] = Math.random() * 2 - 1;
+        }
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = buffer;
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+        noise.connect(gain);
+        gain.connect(this.ctx.destination);
+        noise.start();
+    },
+    // 音效庫
+    sfx: {
+        spawn: () => AudioSys.playTone(400, 'triangle', 0.1, 0.1),
+        attack_melee: () => AudioSys.playNoise(0.1, 0.05),
+        attack_range: () => AudioSys.playTone(800, 'sine', 0.1, 0.05),
+        hit: () => AudioSys.playNoise(0.1, 0.1),
+        win_level: () => {
+            if(!AudioSys.ctx) return;
+            // 勝利和弦
+            [440, 554, 659].forEach((f, i) => setTimeout(() => AudioSys.playTone(f, 'square', 0.4, 0.1), i * 100));
+        },
+        game_over: () => {
+             if(!AudioSys.ctx) return;
+             [300, 250, 200].forEach((f, i) => setTimeout(() => AudioSys.playTone(f, 'sawtooth', 0.5, 0.1), i * 300));
+        }
+    }
+};
+
+/**
+ * 3D 繪圖輔助: 強化版圓柱體 (漸層 + 陰影)
  */
 function drawCylinder(ctx, x, y, radius, height, color, sideColor) {
-    ctx.fillStyle = sideColor;
+    // 1. 底部陰影 (讓物體浮在地上)
+    ctx.fillStyle = "rgba(0,0,0,0.3)";
+    ctx.beginPath();
+    ctx.ellipse(x, y, radius, radius * 0.4, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 2. 側面 (使用漸層模擬曲面光影)
+    const gradient = ctx.createLinearGradient(x - radius, y, x + radius, y);
+    gradient.addColorStop(0, sideColor);     // 邊緣深色
+    gradient.addColorStop(0.2, color);       // 亮部
+    gradient.addColorStop(0.5, color);       // 正面
+    gradient.addColorStop(0.8, color);       
+    gradient.addColorStop(1, sideColor);     // 邊緣深色
+
+    ctx.fillStyle = gradient;
     ctx.beginPath();
     ctx.moveTo(x - radius, y - height);
     ctx.lineTo(x + radius, y - height);
@@ -267,9 +358,21 @@ function drawCylinder(ctx, x, y, radius, height, color, sideColor) {
     ctx.closePath();
     ctx.fill();
 
+    // 側面邊框線 (增強輪廓)
+    ctx.strokeStyle = "rgba(0,0,0,0.1)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // 3. 頂部 (稍微亮一點)
     ctx.fillStyle = color;
     ctx.beginPath();
     ctx.ellipse(x, y - height, radius, radius * 0.4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // 頂部高光
+    ctx.fillStyle = "rgba(255,255,255,0.1)";
+    ctx.beginPath();
+    ctx.ellipse(x, y - height, radius * 0.8, radius * 0.3, 0, 0, Math.PI * 2);
     ctx.fill();
 }
 
@@ -283,7 +386,6 @@ const CONFIG = {
     gasUrl: 'https://script.google.com/macros/s/AKfycbwqZFv8Jzk4A1ERYbzljRudebPBTlBn4OcSsFWfWBGLTIKGSMDEd3focinsGovte4c9/exec'
 };
 
-// 兵種定義
 const UNIT_TYPES = {
     sword:    { name: '刀兵',   cost: 50,  hp: 120, atk: 15, range: 40,  speed: 2.5, type: 'melee',  icon: '🗡️', color: '#f1c40f', cd: 60 },
     bow:      { name: '弓兵',   cost: 120, hp: 80,  atk: 25, range: 250, speed: 2.5, type: 'ranged', icon: '🏹', color: '#2ecc71', cd: 80 },
@@ -293,43 +395,28 @@ const UNIT_TYPES = {
     general:  { name: '大將軍', cost: 900, hp: 1200,atk: 120,range: 60,  speed: 1.2, type: 'melee',  icon: '👑', color: '#c0392b', cd: 500 }
 };
 
-// 10 個不同的地圖路徑 (Start: index 0 -> End: Last)
 const MAPS = [
-    // 1. S型 (簡單)
     [{x:0,y:2}, {x:3,y:2}, {x:3,y:7}, {x:8,y:7}, {x:8,y:2}, {x:12,y:2}, {x:12,y:6}, {x:14,y:6}],
-    // 2. U型 (中路空曠)
     [{x:0,y:1}, {x:2,y:1}, {x:2,y:8}, {x:12,y:8}, {x:12,y:1}, {x:14,y:1}],
-    // 3. 鋸齒型 (路徑長)
     [{x:0,y:8}, {x:2,y:8}, {x:2,y:2}, {x:5,y:2}, {x:5,y:8}, {x:8,y:8}, {x:8,y:2}, {x:11,y:2}, {x:11,y:8}, {x:14,y:8}],
-    // 4. 中央突破 (直線微彎)
     [{x:0,y:5}, {x:4,y:5}, {x:4,y:3}, {x:10,y:3}, {x:10,y:6}, {x:14,y:6}],
-    // 5. 迴旋 (螺旋感)
     [{x:0,y:0}, {x:13,y:0}, {x:13,y:8}, {x:2,y:8}, {x:2,y:3}, {x:10,y:3}, {x:10,y:5}, {x:14,y:5}],
-    // 6. 雙階梯
     [{x:0,y:9}, {x:3,y:9}, {x:3,y:6}, {x:6,y:6}, {x:6,y:3}, {x:9,y:3}, {x:9,y:0}, {x:14,y:0}],
-    // 7. 長城防線 (橫向來回)
     [{x:0,y:2}, {x:14,y:2}, {x:14,y:5}, {x:0,y:5}, {x:0,y:8}, {x:14,y:8}],
-    // 8. 窄口 (只有中間可過)
     [{x:0,y:1}, {x:6,y:1}, {x:6,y:5}, {x:8,y:5}, {x:8,y:9}, {x:14,y:9}],
-    // 9. 大外圈
     [{x:0,y:4}, {x:1,y:4}, {x:1,y:9}, {x:13,y:9}, {x:13,y:1}, {x:1,y:1}, {x:1,y:4}, {x:14,y:4}],
-    // 10. 終極迷宮
     [{x:0,y:0}, {x:0,y:9}, {x:3,y:9}, {x:3,y:2}, {x:6,y:2}, {x:6,y:7}, {x:9,y:7}, {x:9,y:1}, {x:12,y:1}, {x:12,y:8}, {x:14,y:8}]
 ];
 
-// 10 關設定 (敵人隨關卡變強)
 const LEVELS = Array.from({length: 10}, (_, i) => ({
-    // 難度參數
-    enemySpawnRate: Math.max(60, 180 - i * 12), // 出兵速度越來越快
-    goldRate: 1 + i * 0.5,                      // 金錢獲取提升
-    // 敵人類型池 (隨關卡解鎖更強單位)
+    enemySpawnRate: Math.max(60, 180 - i * 12),
+    goldRate: 1 + i * 0.5,
     enemyTypes: i < 2 ? ['sword', 'sword', 'spear'] :
                 i < 4 ? ['sword', 'bow', 'spear', 'vanguard'] :
                 i < 7 ? ['spear', 'bow', 'vanguard', 'vice'] :
                         ['vanguard', 'vice', 'general'],
-    // 敵人屬性加成 (每關 +100% 攻擊與血量, 速度微調)
-    statsMultiplier: 1 + i,       // Lv1=1x, Lv2=2x, Lv3=3x...
-    speedMultiplier: 1 + (i * 0.1)// Lv1=1.0x, Lv10=1.9x
+    statsMultiplier: 1 + i,
+    speedMultiplier: 1 + (i * 0.1)
 }));
 
 class GameEngine {
@@ -345,7 +432,9 @@ class GameEngine {
             baseHpEnemy: 1000,
             maxBaseHp: 1000,
             isGameOver: false,
-            enemySpawnTimer: 0
+            enemySpawnTimer: 0,
+            // 關鍵修正：防止關卡結束時連續觸發
+            isLevelTransitioning: false
         };
 
         this.units = []; 
@@ -394,6 +483,9 @@ class GameEngine {
         this.player.id = 'ID_' + Date.now();
         this.player.startTime = Date.now();
         
+        // 啟動音效引擎
+        AudioSys.init();
+        
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('game-container').style.display = 'block';
         
@@ -402,29 +494,32 @@ class GameEngine {
     }
 
     startLevel(lvl) {
-        if (lvl >= LEVELS.length) return this.endGame(true, "天下統一！三國歸一！");
+        // 重置轉場狀態
+        this.gameState.isLevelTransitioning = false;
+
+        if (lvl >= LEVELS.length) {
+            AudioSys.sfx.win_level();
+            return this.endGame(true, "天下統一！三國歸一！");
+        }
         
         this.gameState.level = lvl;
         
-        // 載入該關卡地圖
+        // 地圖
         const mapPoints = MAPS[lvl % MAPS.length];
         this.pathPixels = mapPoints.map(p => ({
             x: p.x * CONFIG.gridSize + CONFIG.gridSize/2,
             y: p.y * CONFIG.gridSize + CONFIG.gridSize/2
         }));
 
-        // 難度設定
+        // 難度
         const lvlConfig = LEVELS[lvl];
-        // 玩家血量微幅成長，但敵人成長更快
         this.gameState.maxBaseHp = 1000 + (lvl * 1000); 
         this.gameState.baseHpEnemy = this.gameState.maxBaseHp * lvlConfig.statsMultiplier; 
         this.gameState.baseHpPlayer = 1000 + (lvl * 200);
         
-        // 如果是第一關，給初始金；否則保留上一關金錢並給予過關獎勵
         if (lvl === 0) {
             this.gameState.gold = 500;
         } else {
-            // 過關獎勵：基礎 1000 + 關卡加成
             const bonus = 1000 + (lvl * 500);
             this.gameState.gold += bonus;
             this.showMessage(`獲得凱旋獎金 $${bonus}！`, false);
@@ -433,19 +528,22 @@ class GameEngine {
         this.units = [];
         this.projectiles = [];
         this.particles = [];
+        this.gameState.enemySpawnTimer = 0; // 重置出兵計時
         
         this.updateUI();
         
-        // 顯示敵人強度提示
-        const enemyStatsText = `(敵軍強度: ${Math.round(lvlConfig.statsMultiplier * 100)}%)`;
+        const enemyStatsText = `(強度: ${Math.round(lvlConfig.statsMultiplier * 100)}%)`;
         document.getElementById('enemy-stats-hint').innerText = enemyStatsText;
         
         setTimeout(() => {
+            AudioSys.sfx.win_level(); // 用勝利音效當作開場號角
             this.showMessage(`第 ${lvl+1} 關 - 進攻！`);
         }, 500);
     }
 
     spawnPlayerUnit(typeKey) {
+        if (this.gameState.isLevelTransitioning || this.gameState.isGameOver) return;
+
         const data = UNIT_TYPES[typeKey];
         if (this.gameState.gold < data.cost) {
             this.showMessage("軍費不足", true);
@@ -455,21 +553,23 @@ class GameEngine {
 
         this.gameState.gold -= data.cost;
         this.cooldowns[typeKey] = data.cd; 
+        
+        AudioSys.sfx.spawn(); // 音效
 
         const startNode = this.pathPixels[this.pathPixels.length - 1];
-        // 玩家單位不享受關卡加成 (除非做升級系統，這裡暫時保持原樣，靠數量與策略取勝)
         const unit = new Unit(startNode.x, startNode.y, 'player', typeKey, this.pathPixels.length - 1, 1, 1);
         this.units.push(unit);
         this.updateUI();
     }
 
     spawnEnemyUnit() {
+        if (this.gameState.isLevelTransitioning) return;
+
         const lvlData = LEVELS[this.gameState.level];
         const types = lvlData.enemyTypes;
         const randType = types[Math.floor(Math.random() * types.length)];
         
         const startNode = this.pathPixels[0];
-        // 傳入關卡倍率
         const unit = new Unit(startNode.x, startNode.y, 'enemy', randType, 0, lvlData.statsMultiplier, lvlData.speedMultiplier);
         this.units.push(unit);
     }
@@ -490,9 +590,11 @@ class GameEngine {
     update() {
         const lvlData = LEVELS[this.gameState.level];
 
-        // 1. 資源與生成
-        this.gameState.gold += lvlData.goldRate * 0.5; 
-        if (this.gameState.gold > 20000) this.gameState.gold = 20000; // 上限提高
+        // 資源
+        if (!this.gameState.isLevelTransitioning) {
+            this.gameState.gold += lvlData.goldRate * 0.5; 
+            if (this.gameState.gold > 20000) this.gameState.gold = 20000;
+        }
 
         // 敵軍生成
         this.gameState.enemySpawnTimer++;
@@ -501,7 +603,7 @@ class GameEngine {
             this.gameState.enemySpawnTimer = 0;
         }
 
-        // 冷卻更新
+        // 冷卻
         for (let key in this.cooldowns) {
             if (this.cooldowns[key] > 0) this.cooldowns[key]--;
             const btn = document.getElementById(`btn-${key}`);
@@ -517,7 +619,7 @@ class GameEngine {
             }
         }
 
-        // 2. 單位邏輯
+        // 單位
         this.units.sort((a, b) => a.y - b.y);
 
         for (let i = this.units.length - 1; i >= 0; i--) {
@@ -526,33 +628,42 @@ class GameEngine {
             if (u.dead) {
                 this.units.splice(i, 1);
                 if (u.team === 'enemy') {
-                    // 擊殺獎金也隨關卡提升
                     this.gameState.gold += UNIT_TYPES[u.typeKey].cost * 0.3 * lvlData.statsMultiplier;
                     this.player.score += 10 * (this.gameState.level + 1);
                 }
             }
         }
 
-        // 3. 子彈
+        // 子彈
         for (let i = this.projectiles.length - 1; i >= 0; i--) {
             const p = this.projectiles[i];
             p.update();
             if (p.hit) this.projectiles.splice(i, 1);
         }
 
-        // 4. 粒子
+        // 粒子
         this.particles = this.particles.filter(p => p.life > 0);
         this.particles.forEach(p => p.update());
 
         this.updateUI();
 
         // 勝負判定
-        if (this.gameState.baseHpPlayer <= 0) this.endGame(false, "城池陷落，勝敗乃兵家常事...");
-        if (this.gameState.baseHpEnemy <= 0) {
+        if (this.gameState.baseHpPlayer <= 0 && !this.gameState.isGameOver) {
+            AudioSys.sfx.game_over();
+            this.endGame(false, "城池陷落，勝敗乃兵家常事...");
+        }
+
+        // 勝利判斷 (修正無限循環 Bug)
+        if (this.gameState.baseHpEnemy <= 0 && !this.gameState.isLevelTransitioning) {
             this.gameState.baseHpEnemy = 0;
+            this.gameState.isLevelTransitioning = true; // 鎖定狀態
+            
+            AudioSys.sfx.win_level();
             this.showMessage("敵營攻破！全軍整備，前往下一戰場...", false);
-            // 延遲進入下一關
-            this.gameState.enemySpawnTimer = -999; // 停止出兵
+            
+            // 清除所有子彈與攻擊行為
+            this.units.forEach(u => u.state = 'move');
+            
             setTimeout(() => {
                  this.startLevel(this.gameState.level + 1);
             }, 3000);
@@ -567,14 +678,14 @@ class GameEngine {
         const start = this.pathPixels[0];
         const end = this.pathPixels[this.pathPixels.length-1];
         
-        // 敵方基地 (根據強度變大)
+        // 敵方基地 (3D 強化)
         const enemyScale = 1 + (this.gameState.level * 0.1);
-        drawCylinder(this.ctx, start.x, start.y, 50 * enemyScale, 60 * enemyScale, '#c0392b', '#922b21');
-        this.drawText(start.x, start.y - 80 * enemyScale, `敵營 Lv.${this.gameState.level+1}`, "20px Arial", "#fff");
+        drawCylinder(this.ctx, start.x, start.y, 50 * enemyScale, 80 * enemyScale, '#e74c3c', '#c0392b');
+        this.drawText(start.x, start.y - 100 * enemyScale, `敵營 Lv.${this.gameState.level+1}`, "24px Arial", "#fff");
         
-        // 我方基地
-        drawCylinder(this.ctx, end.x, end.y, 50, 60, '#2980b9', '#1a5276');
-        this.drawText(end.x, end.y - 80, "我城", "20px Arial", "#fff");
+        // 我方基地 (3D 強化)
+        drawCylinder(this.ctx, end.x, end.y, 50, 80, '#3498db', '#2980b9');
+        this.drawText(end.x, end.y - 100, "我城", "24px Arial", "#fff");
 
         this.units.forEach(u => u.draw(this.ctx));
         this.projectiles.forEach(p => p.draw(this.ctx));
@@ -584,18 +695,22 @@ class GameEngine {
     drawPath() {
         this.ctx.lineCap = 'round';
         this.ctx.lineJoin = 'round';
-        this.ctx.lineWidth = 60;
-        this.ctx.strokeStyle = '#d7bde2'; 
+        
+        // 路徑陰影 (厚度感)
+        this.ctx.lineWidth = 70;
+        this.ctx.strokeStyle = '#a08d85'; // 深色泥土
         this.ctx.beginPath();
         if (this.pathPixels.length > 0) {
-            this.ctx.moveTo(this.pathPixels[0].x, this.pathPixels[0].y + 5);
+            this.ctx.moveTo(this.pathPixels[0].x, this.pathPixels[0].y + 8);
             for (let i = 1; i < this.pathPixels.length; i++) {
-                this.ctx.lineTo(this.pathPixels[i].x, this.pathPixels[i].y + 5);
+                this.ctx.lineTo(this.pathPixels[i].x, this.pathPixels[i].y + 8);
             }
         }
         this.ctx.stroke();
 
-        this.ctx.strokeStyle = '#f5eef8';
+        // 路面
+        this.ctx.lineWidth = 70;
+        this.ctx.strokeStyle = '#e6d0ce'; // 淺色路面
         this.ctx.beginPath();
         if (this.pathPixels.length > 0) {
             this.ctx.moveTo(this.pathPixels[0].x, this.pathPixels[0].y);
@@ -610,14 +725,16 @@ class GameEngine {
         this.ctx.font = font;
         this.ctx.fillStyle = color;
         this.ctx.textAlign = "center";
+        this.ctx.shadowColor = "rgba(0,0,0,0.8)";
+        this.ctx.shadowBlur = 4;
         this.ctx.fillText(text, x, y);
+        this.ctx.shadowBlur = 0;
     }
 
     updateUI() {
         document.getElementById('gold').innerText = Math.floor(this.gameState.gold);
         document.getElementById('wave-info').innerText = `第 ${this.gameState.level + 1} 關`;
         
-        // 血條更新 (考慮 maxHp 變動)
         const pPct = Math.max(0, (this.gameState.baseHpPlayer / (1000 + this.gameState.level * 200)) * 100);
         document.getElementById('player-hp-bar').style.width = `${pPct}%`;
         
@@ -644,7 +761,7 @@ class GameEngine {
         let color = 'white';
         if (type === 'hit') color = 'orange';
         if (type === 'blood') color = 'red';
-        for(let i=0; i<5; i++) {
+        for(let i=0; i<6; i++) {
             this.particles.push(new Particle(x, y, color));
         }
     }
@@ -691,7 +808,6 @@ class Unit {
         
         const data = UNIT_TYPES[typeKey];
         this.name = data.name;
-        // 套用關卡倍率
         this.maxHp = data.hp * statsMult;
         this.hp = this.maxHp;
         this.atk = data.atk * statsMult;
@@ -710,6 +826,7 @@ class Unit {
         
         this.visualHeight = (typeKey === 'general') ? 50 : 30;
         this.bounce = 0;
+        this.scaleY = 0.9; // 3D 壓扁效果
     }
 
     update(game) {
@@ -731,7 +848,7 @@ class Unit {
         }
 
         if (this.state === 'move') {
-            this.bounce = Math.sin(Date.now() / 100) * 3;
+            this.bounce = Math.abs(Math.sin(Date.now() / 150)) * 5;
         } else {
             this.bounce = 0;
         }
@@ -760,8 +877,10 @@ class Unit {
     attack(target, game) {
         if (this.attackType === 'ranged') {
             game.projectiles.push(new Projectile(this.x, this.y - this.visualHeight, target, this.atk, this.team));
+            AudioSys.sfx.attack_range();
         } else {
             game.createEffect(target.x || this.x, target.y || this.y, 'hit');
+            AudioSys.sfx.attack_melee();
             if (target.type === 'base') {
                 if (target.team === 'player') game.gameState.baseHpPlayer -= this.atk;
                 else game.gameState.baseHpEnemy -= this.atk;
@@ -799,37 +918,53 @@ class Unit {
         game.createEffect(this.x, this.y - this.visualHeight, 'blood');
         if (this.hp <= 0) {
             this.dead = true;
+            AudioSys.sfx.hit();
         }
     }
 
     draw(ctx) {
-        const drawY = this.y - this.visualHeight + this.bounce;
+        const drawY = this.y - this.visualHeight - this.bounce;
 
+        // 3D 陰影 (半透明黑色橢圓)
         ctx.fillStyle = "rgba(0,0,0,0.3)";
         ctx.beginPath();
-        ctx.ellipse(this.x, this.y, 15, 8, 0, 0, Math.PI*2);
+        ctx.ellipse(this.x, this.y, 18, 10, 0, 0, Math.PI*2);
         ctx.fill();
 
-        ctx.lineWidth = 3;
-        ctx.strokeStyle = this.team === 'player' ? '#2980b9' : '#c0392b';
-        ctx.fillStyle = this.color;
+        // 身體 (使用 drawCylinder 畫身體更有 3D 感)
+        // 這裡簡化為圓形但加上漸層
+        const grad = ctx.createRadialGradient(this.x - 5, drawY - 5, 2, this.x, drawY, 20);
+        grad.addColorStop(0, this.color);
+        grad.addColorStop(1, this.team === 'player' ? '#2980b9' : '#c0392b'); // 陰影色
+
+        ctx.fillStyle = grad;
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#fff';
         
         ctx.beginPath();
-        ctx.arc(this.x, drawY, 20, 0, Math.PI*2);
+        ctx.arc(this.x, drawY, 22, 0, Math.PI*2);
         ctx.fill();
         ctx.stroke();
 
-        ctx.font = "20px Arial";
+        ctx.font = "24px Arial";
         ctx.fillStyle = "#fff";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
+        ctx.shadowColor = "rgba(0,0,0,0.5)";
+        ctx.shadowBlur = 2;
         ctx.fillText(this.icon, this.x, drawY);
+        ctx.shadowBlur = 0;
 
+        // 血條 (更精緻)
         const hpPct = this.hp / this.maxHp;
-        ctx.fillStyle = "red";
-        ctx.fillRect(this.x - 15, drawY - 30, 30, 5);
-        ctx.fillStyle = "#2ecc71";
-        ctx.fillRect(this.x - 15, drawY - 30, 30 * hpPct, 5);
+        const barY = drawY - 35;
+        ctx.fillStyle = "#555";
+        ctx.fillRect(this.x - 18, barY, 36, 6);
+        ctx.fillStyle = hpPct > 0.5 ? "#2ecc71" : "#e74c3c";
+        ctx.fillRect(this.x - 18, barY, 36 * hpPct, 6);
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(this.x - 18, barY, 36, 6);
     }
 }
 
@@ -839,7 +974,7 @@ class Projectile {
         this.target = target;
         this.damage = dmg;
         this.team = team;
-        this.speed = 10;
+        this.speed = 12;
         this.hit = false;
         
         this.tx = target.x || (team === 'player' ? Game.pathPixels[0].x : Game.pathPixels[Game.pathPixels.length-1].x);
@@ -860,6 +995,7 @@ class Projectile {
         if (dist <= this.speed) {
             this.hit = true;
             Game.createEffect(this.tx, this.ty, 'hit');
+            AudioSys.sfx.hit(); // 擊中音效
             if (this.target.type === 'base') {
                 if (this.target.team === 'player') Game.gameState.baseHpPlayer -= this.damage;
                 else Game.gameState.baseHpEnemy -= this.damage;
@@ -875,7 +1011,7 @@ class Projectile {
     draw(ctx) {
         ctx.fillStyle = this.team === 'player' ? '#3498db' : '#e74c3c';
         ctx.beginPath();
-        ctx.arc(this.x, this.y, 5, 0, Math.PI*2);
+        ctx.arc(this.x, this.y, 6, 0, Math.PI*2);
         ctx.fill();
     }
 }
@@ -883,17 +1019,20 @@ class Projectile {
 class Particle {
     constructor(x, y, color) {
         this.x = x; this.y = y; this.color = color;
-        this.vx = (Math.random()-0.5)*5;
-        this.vy = (Math.random()-0.5)*5;
+        this.vx = (Math.random()-0.5)*6;
+        this.vy = (Math.random()-0.5)*6;
         this.life = 1.0;
+        this.gravity = 0.2;
     }
     update() {
-        this.x += this.vx; this.y += this.vy; this.life -= 0.1;
+        this.x += this.vx; this.y += this.vy; 
+        this.vy += this.gravity;
+        this.life -= 0.05;
     }
     draw(ctx) {
         ctx.globalAlpha = Math.max(0, this.life);
         ctx.fillStyle = this.color;
-        ctx.beginPath(); ctx.arc(this.x, this.y, 3, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(this.x, this.y, 4, 0, Math.PI*2); ctx.fill();
         ctx.globalAlpha = 1;
     }
 }
