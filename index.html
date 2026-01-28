@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>三國策略攻防戰 (角色放大版)</title>
+    <title>三國策略攻防戰 (v0128.3)</title>
     <style>
         :root {
             --primary-color: #f39c12; 
@@ -69,7 +69,7 @@
         }
         .hp-bar-fill { height: 100%; transition: width 0.2s; position: relative; }
 
-        /* Camera Controls (Right) */
+        /* Camera Controls */
         #cam-controls {
             position: absolute; right: 15px; top: 80px; display: flex; flex-direction: column; gap: 8px; pointer-events: auto;
         }
@@ -81,7 +81,7 @@
         }
         .cam-btn:hover { background: var(--primary-color); transform: scale(1.1); }
 
-        /* Upgrade Controls (Left) */
+        /* Upgrade Controls */
         #upgrade-controls {
             position: absolute; left: 15px; bottom: 140px; 
             display: flex; flex-direction: column; gap: 8px; pointer-events: auto;
@@ -126,7 +126,6 @@
         .unit-btn:hover { transform: translateY(-2px); border-color: var(--primary-color); }
         .unit-btn:active { transform: translateY(4px); box-shadow: 0 0 0 #95a5a6; }
         .unit-btn.disabled { filter: grayscale(100%); opacity: 0.6; cursor: not-allowed; background: #e0e0e0; }
-        
         .unit-btn[id="btn-general"] { border-color: gold; background: linear-gradient(to bottom, #fcf3cf, #f9e79f); box-shadow: 0 3px 0 #d4ac0d; }
         
         .unit-img-preview { width: 40px; height: 40px; object-fit: contain; margin-bottom: 2px; filter: drop-shadow(1px 1px 1px rgba(0,0,0,0.2)); }
@@ -274,7 +273,6 @@
                     <div class="cam-btn" onclick="Game.camera.reset()" title="重置視角 (R)">🎯</div>
                 </div>
 
-                <!-- 升級按鈕區 -->
                 <div id="upgrade-controls">
                     <div class="upgrade-btn" id="btn-upgrade" onclick="Game.upgradeArmy()" title="全軍升級">
                         <span style="font-size:24px;">⚔️</span>
@@ -497,6 +495,12 @@ class GameEngine {
         this.enemySpawnTimer = 0; this.isLevelTransitioning = false;
         this.maxBaseHp = 1000;
 
+        // 城堡防禦數值
+        this.castleStats = {
+            player: { range: 300, damage: 50, cooldown: 60, timer: 0 },
+            enemy: { range: 300, damage: 50, cooldown: 60, timer: 0 }
+        };
+
         this.units = []; this.projectiles = []; this.particles = []; this.pathPixels = [];
         this.lastTime = 0;
         this.cooldowns = {}; 
@@ -643,6 +647,10 @@ class GameEngine {
         this.#baseHpEnemy = this.maxBaseHp * lvlConfig.statsMultiplier; 
         this.#baseHpPlayer = 1000 + (lvl * 200);
         
+        // 升級城堡攻擊力
+        this.castleStats.player.damage = 50 * (lvl + 1);
+        this.castleStats.enemy.damage = 50 * (lvl + 1);
+        
         if (lvl === 0) {
             this.#gold = 1000;
             this.#updateChecksum();
@@ -657,7 +665,14 @@ class GameEngine {
         
         this.updateUI();
         document.getElementById('enemy-stats-hint').innerText = `(強度: ${Math.round(lvlConfig.statsMultiplier * 100)}%)`;
-        setTimeout(() => { AudioSys.sfx.win_level(); this.showMessage(`第 ${lvl+1} 關 - 進攻！`); }, 500);
+        
+        // 城堡升級特效
+        setTimeout(() => { 
+            this.createFloatingText(this.pathPixels[0].x, this.pathPixels[0].y, "Lv.UP!");
+            this.createFloatingText(this.pathPixels[this.pathPixels.length-1].x, this.pathPixels[this.pathPixels.length-1].y, "Lv.UP!");
+            AudioSys.sfx.win_level(); 
+            this.showMessage(`第 ${lvl+1} 關 - 進攻！`); 
+        }, 500);
     }
 
     upgradeArmy() {
@@ -780,6 +795,9 @@ class GameEngine {
             }
         }
 
+        // 城堡攻擊邏輯
+        this.updateCastleDefense();
+
         for (let i = this.projectiles.length - 1; i >= 0; i--) {
             const p = this.projectiles[i];
             p.update();
@@ -801,6 +819,47 @@ class GameEngine {
         }
     }
 
+    // 城堡防禦邏輯
+    updateCastleDefense() {
+        // Player Castle
+        if (this.castleStats.player.timer > 0) this.castleStats.player.timer--;
+        else {
+            // Find enemy near player castle
+            // Player castle pos depends on faction
+            const pBaseIdx = (this.playerFaction === 1) ? this.pathPixels.length - 1 : 0;
+            const pBase = this.pathPixels[pBaseIdx];
+            
+            for (let u of this.units) {
+                if (u.team === 'enemy' && !u.dead) {
+                    if (Math.hypot(u.x - pBase.x, u.y - pBase.y) <= this.castleStats.player.range) {
+                        this.projectiles.push(new Projectile(pBase.x, pBase.y - 100, u, this.castleStats.player.damage, 'player', 'ranged'));
+                        this.castleStats.player.timer = this.castleStats.player.cooldown;
+                        AudioSys.sfx.attack_range();
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Enemy Castle
+        if (this.castleStats.enemy.timer > 0) this.castleStats.enemy.timer--;
+        else {
+            const eBaseIdx = (this.playerFaction === 1) ? 0 : this.pathPixels.length - 1;
+            const eBase = this.pathPixels[eBaseIdx];
+            
+            for (let u of this.units) {
+                if (u.team === 'player' && !u.dead) {
+                    if (Math.hypot(u.x - eBase.x, u.y - eBase.y) <= this.castleStats.enemy.range) {
+                        this.projectiles.push(new Projectile(eBase.x, eBase.y - 100, u, this.castleStats.enemy.damage, 'enemy', 'ranged'));
+                        this.castleStats.enemy.timer = this.castleStats.enemy.cooldown;
+                        AudioSys.sfx.attack_range();
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
     draw() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.drawBackground(); 
@@ -810,11 +869,11 @@ class GameEngine {
         const end = this.pathPixels[this.pathPixels.length-1];
         
         if (this.playerFaction === 1) {
-            this.drawCastle(start.x, start.y, 'enemy', `敵營 Lv.${this.level+1}`);
-            this.drawCastle(end.x, end.y, 'player', "我城");
+            this.drawCastle(start.x, start.y, 'enemy', `敵營 Lv.${this.level+1}`, this.#baseHpEnemy);
+            this.drawCastle(end.x, end.y, 'player', "我城", this.#baseHpPlayer);
         } else {
-            this.drawCastle(start.x, start.y, 'player', "我城");
-            this.drawCastle(end.x, end.y, 'enemy', `敵營 Lv.${this.level+1}`);
+            this.drawCastle(start.x, start.y, 'player', "我城", this.#baseHpPlayer);
+            this.drawCastle(end.x, end.y, 'enemy', `敵營 Lv.${this.level+1}`, this.#baseHpEnemy);
         }
 
         this.units.forEach(u => u.draw(this.ctx, this.camera));
@@ -850,8 +909,14 @@ class GameEngine {
         this.ctx.stroke();
     }
 
-    drawCastle(wx, wy, type, label) {
+    drawCastle(wx, wy, type, label, hp) {
         const pos = this.camera.toScreen(wx, wy); const s = pos.scale;
+        
+        // 戰敗變灰
+        if (hp <= 0) {
+            this.ctx.filter = 'grayscale(100%)';
+        }
+
         this.ctx.fillStyle = "rgba(0,0,0,0.3)";
         this.ctx.beginPath(); this.ctx.ellipse(pos.x, pos.y, 40 * s, 20 * s, 0, 0, Math.PI * 2); this.ctx.fill();
         
@@ -865,6 +930,10 @@ class GameEngine {
             const size = 100 * s;
             this.ctx.drawImage(img, pos.x - size/2, pos.y - size, size, size);
         }
+        
+        // Reset filter
+        this.ctx.filter = 'none';
+
         this.drawText(pos.x, pos.y - 110 * s, label, `${20 * s}px Arial`, "#fff");
     }
 
@@ -872,6 +941,15 @@ class GameEngine {
         this.ctx.font = font; this.ctx.fillStyle = color;
         this.ctx.textAlign = "center"; this.ctx.shadowColor = "rgba(0,0,0,0.8)";
         this.ctx.shadowBlur = 4; this.ctx.fillText(text, x, y); this.ctx.shadowBlur = 0;
+    }
+
+    createFloatingText(x, y, text) {
+        const p = new Particle(x, y, 'gold');
+        p.isText = true;
+        p.text = text;
+        p.life = 2.0;
+        p.vy = -2; // Float up
+        this.particles.push(p);
     }
 
     updateUI() {
@@ -1118,12 +1196,30 @@ class Particle {
         this.x = x; this.y = y; this.color = color;
         this.vx = (Math.random()-0.5)*6; this.vy = (Math.random()-0.5)*6;
         this.life = 1.0; this.gravity = 0.2;
+        this.isText = false;
+        this.text = "";
     }
-    update() { this.x += this.vx; this.y += this.vy; this.vy += this.gravity; this.life -= 0.05; }
+    update() { 
+        this.x += this.vx; this.y += this.vy; 
+        if(!this.isText) this.vy += this.gravity; 
+        this.life -= 0.05; 
+    }
     draw(ctx, camera) {
         const pos = camera.toScreen(this.x, this.y); const s = pos.scale;
-        ctx.globalAlpha = Math.max(0, this.life); ctx.fillStyle = this.color;
-        ctx.beginPath(); ctx.arc(pos.x, pos.y, 4 * s, 0, Math.PI*2); ctx.fill(); ctx.globalAlpha = 1;
+        ctx.globalAlpha = Math.max(0, this.life); 
+        
+        if(this.isText) {
+            ctx.fillStyle = "gold";
+            ctx.font = `${24*s}px Arial`;
+            ctx.strokeStyle = "black";
+            ctx.lineWidth = 3;
+            ctx.strokeText(this.text, pos.x, pos.y);
+            ctx.fillText(this.text, pos.x, pos.y);
+        } else {
+            ctx.fillStyle = this.color;
+            ctx.beginPath(); ctx.arc(pos.x, pos.y, 4 * s, 0, Math.PI*2); ctx.fill(); 
+        }
+        ctx.globalAlpha = 1;
     }
 }
 
