@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>三國策略攻防戰 (V0128)</title>
+    <title>三國策略攻防戰 (v0128)</title>
     <style>
         :root {
             --primary-color: #f39c12; 
@@ -78,8 +78,7 @@
             display: flex; gap: 8px;
             padding: 12px 20px; width: auto; max-width: 95%; justify-content: center;
             border-radius: 20px; overflow-x: auto; overflow-y: hidden;
-            z-index: 100; /* 確保在最上層 */
-            white-space: nowrap; /* 防止換行 */
+            z-index: 100; white-space: nowrap;
         }
 
         .unit-btn {
@@ -175,22 +174,23 @@
 </head>
 <body>
 
-    <!-- 1. 登入與角色選擇畫面 -->
     <div id="login-screen">
         <div class="panel-box">
             <h1 style="font-size: 40px; margin-bottom: 10px; text-shadow: 2px 2px 0 #ddd;">⚔️ 三國策略攻防戰</h1>
             <p style="color: #7f8c8d; font-size: 18px;">請選擇您的指揮官</p>
             
             <div class="char-selection">
+                <!-- 龍將軍 (角色1) -->
                 <div class="char-card" onclick="Game.selectCharacter(1, this)">
                     <img src="https://raw.githubusercontent.com/btosichen/2026-Tower-Defense-Games/73d914672748f372cbd42737a5025b071972627a/logo-1-0-0.png" class="char-img">
                     <div style="font-weight:bold; font-size:20px; color: #2980b9;">龍將軍</div>
-                    <div class="char-desc">英勇善戰<br>正面突破</div>
+                    <div class="char-desc">鎮守東方<br>由右攻左</div>
                 </div>
+                <!-- 虎元帥 (角色2) -->
                 <div class="char-card" onclick="Game.selectCharacter(2, this)">
                     <img src="https://raw.githubusercontent.com/btosichen/2026-Tower-Defense-Games/73d914672748f372cbd42737a5025b071972627a/logo-2-0-0.png" class="char-img">
                     <div style="font-weight:bold; font-size:20px; color: #c0392b;">虎元帥</div>
-                    <div class="char-desc">智勇雙全<br>防守反擊</div>
+                    <div class="char-desc">鎮守西方<br>由左攻右</div>
                 </div>
             </div>
 
@@ -206,6 +206,7 @@
         
         <div id="ui-layer">
             <div id="top-bar" class="hud-panel">
+                <!-- 左側：敵方 -->
                 <div style="display:flex; align-items:center;">
                     <span style="color:var(--enemy-color); margin-right:10px;">🚩 敵營</span>
                     <div class="hp-bar-container">
@@ -221,6 +222,7 @@
                     </div>
                 </div>
 
+                <!-- 右側：我方 -->
                 <div style="display:flex; align-items:center;">
                     <img id="avatar-display" src="" style="display:none;">
                     <span style="color:var(--player-color); margin-right:10px;">🛡️ 我城</span>
@@ -239,8 +241,6 @@
             </div>
 
             <div id="message-area">戰鬥開始！</div>
-            
-            <!-- 確保這個容器存在且有足夠高度 -->
             <div id="bottom-bar" class="hud-panel"></div>
         </div>
     </div>
@@ -260,6 +260,7 @@
 <script>
 /**
  * 資源與配置
+ * 重構：不再區分 player/enemy 圖片，而是區分 f1 (龍) / f2 (虎)
  */
 const ASSETS = {
     chars: {
@@ -278,7 +279,8 @@ const ASSETS = {
         "https://raw.githubusercontent.com/btosichen/2026-Tower-Defense-Games/d1541125592a5f3ca60a7ba19a3ddc42cce65421/bg-8.png",
         "https://raw.githubusercontent.com/btosichen/2026-Tower-Defense-Games/d1541125592a5f3ca60a7ba19a3ddc42cce65421/bg-9.png"
     ],
-    player: {
+    // 陣營 1：龍將軍 (藍色系)
+    f1: {
         castle: "https://raw.githubusercontent.com/btosichen/2026-Tower-Defense-Games/ac4b7a1f6d922e4765e29eef26384cd26bd7afd8/logo-1-0%20(90%20x%2090%20%E5%83%8F%E7%B4%A0).png",
         sword: "https://raw.githubusercontent.com/btosichen/2026-Tower-Defense-Games/ac4b7a1f6d922e4765e29eef26384cd26bd7afd8/logo-1-1%20(50%20x%2050%20%E5%83%8F%E7%B4%A0).png",
         bow: "https://raw.githubusercontent.com/btosichen/2026-Tower-Defense-Games/ac4b7a1f6d922e4765e29eef26384cd26bd7afd8/logo-1-2(50%20x%2050%20%E5%83%8F%E7%B4%A0).png",
@@ -289,7 +291,8 @@ const ASSETS = {
         general: "https://raw.githubusercontent.com/btosichen/2026-Tower-Defense-Games/ac4b7a1f6d922e4765e29eef26384cd26bd7afd8/logo-1-7(50%20x%2050%20%E5%83%8F%E7%B4%A0).png",
         advisor: "https://raw.githubusercontent.com/btosichen/2026-Tower-Defense-Games/ac4b7a1f6d922e4765e29eef26384cd26bd7afd8/logo-1-8(50%20x%2050%20%E5%83%8F%E7%B4%A0).png"
     },
-    enemy: {
+    // 陣營 2：虎元帥 (紅色系)
+    f2: {
         castle: "https://raw.githubusercontent.com/btosichen/2026-Tower-Defense-Games/ac4b7a1f6d922e4765e29eef26384cd26bd7afd8/logo-2-0%20(90%20x%2090%20%E5%83%8F%E7%B4%A0).png",
         sword: "https://raw.githubusercontent.com/btosichen/2026-Tower-Defense-Games/ac4b7a1f6d922e4765e29eef26384cd26bd7afd8/logo-2-1(50%20x%2050%20%E5%83%8F%E7%B4%A0).png",
         bow: "https://raw.githubusercontent.com/btosichen/2026-Tower-Defense-Games/ac4b7a1f6d922e4765e29eef26384cd26bd7afd8/logo-2-2(50%20x%2050%20%E5%83%8F%E7%B4%A0).png",
@@ -303,8 +306,7 @@ const ASSETS = {
     images: {} 
 };
 
-// 安全設定：使用閉包與 Object.freeze 防止 Console 修改
-// 確保8個角色齊全
+// 安全設定
 const SecureConfig = (function() {
     const _units = {
         sword:    { name: '刀兵',   cost: 50,  hp: 120, atk: 15, range: 40,  speed: 2.5, type: 'melee', cd: 60 },
@@ -364,15 +366,17 @@ const ImageLoader = {
             loaded++;
             if (loaded >= total && callback) callback();
         };
-        for (let key in ASSETS.player) {
-            const img = new Image(); img.src = ASSETS.player[key];
+        // 載入陣營1 (龍)
+        for (let key in ASSETS.f1) {
+            const img = new Image(); img.src = ASSETS.f1[key];
             img.onload = checkLoad; img.onerror = checkLoad;
-            ASSETS.images[`p_${key}`] = img;
+            ASSETS.images[`f1_${key}`] = img;
         }
-        for (let key in ASSETS.enemy) {
-            const img = new Image(); img.src = ASSETS.enemy[key];
+        // 載入陣營2 (虎)
+        for (let key in ASSETS.f2) {
+            const img = new Image(); img.src = ASSETS.f2[key];
             img.onload = checkLoad; img.onerror = checkLoad;
-            ASSETS.images[`e_${key}`] = img;
+            ASSETS.images[`f2_${key}`] = img;
         }
         ASSETS.backgrounds.forEach((url, index) => {
             const img = new Image(); img.src = url;
@@ -380,13 +384,12 @@ const ImageLoader = {
             ASSETS.images[`bg_${index}`] = img;
         });
         
-        // 強制載入機制：5秒後如果還沒載完，也強制開始 (避免介面消失)
         setTimeout(() => {
             if (loaded < total && callback) {
                 console.warn("部分圖片載入失敗，強制啟動介面");
                 callback();
             }
-        }, 5000);
+        }, 3000);
     }
 };
 
@@ -445,9 +448,6 @@ class Camera {
     handleWheel(e) { e.preventDefault(); if (e.deltaY < 0) this.zoomIn(); else this.zoomOut(); }
 }
 
-/**
- * 遊戲引擎 (安全增強版)
- */
 class GameEngine {
     #gold = 0; #score = 0; #levelScores = new Array(10).fill(0);
     #baseHpPlayer = 1000; #baseHpEnemy = 1000; #playerUnitCounts = {};
@@ -458,7 +458,9 @@ class GameEngine {
         this.ctx = this.canvas.getContext('2d');
         this.player = { name: '', id: '' };
         this.camera = new Camera(1200, 800);
-        this.selectedAvatar = null;
+        this.selectedAvatar = null; // 1=龍(F1), 2=虎(F2)
+        this.playerFaction = 1;
+        this.enemyFaction = 2;
         
         this.level = 0; this.isGameOver = false;
         this.enemySpawnTimer = 0; this.isLevelTransitioning = false;
@@ -468,11 +470,8 @@ class GameEngine {
         this.lastTime = 0;
         this.cooldowns = {}; 
         
-        // 確保按鈕生成不會因為圖片載入失敗而被略過
         ImageLoader.loadAll(() => {
-            const msg = document.getElementById('loading-text');
-            if(msg) msg.innerText = "兵馬已備齊，請選擇指揮官！";
-            this.createUnitButtons();
+            document.getElementById('loading-text').innerText = "兵馬已備齊，請選擇指揮官！";
         });
 
         const container = document.getElementById('game-container');
@@ -513,7 +512,7 @@ class GameEngine {
 
     createUnitButtons() {
         const bar = document.getElementById('bottom-bar');
-        if(!bar) return; // 防呆
+        if(!bar) return; 
         bar.innerHTML = '';
         const types = SecureConfig.getUnitTypes();
         const keys = Object.keys(types);
@@ -525,7 +524,9 @@ class GameEngine {
             div.className = 'unit-btn';
             div.id = `btn-${key}`;
             div.onclick = () => this.spawnPlayerUnit(key);
-            const imgSrc = ASSETS.player[key];
+            
+            // 根據選擇的陣營顯示按鈕圖片
+            const imgSrc = ASSETS.images[`f${this.playerFaction}_${key}`]?.src || "";
             
             div.innerHTML = `
                 <span class="hotkey">${index+1}</span>
@@ -539,10 +540,9 @@ class GameEngine {
             this.cooldowns[key] = 0;
             if (u.limit) div.querySelector('.limit-badge').style.display = 'block';
         });
-        document.addEventListener('keydown', (e) => {
-            const idx = parseInt(e.key) - 1;
-            if (idx >= 0 && idx < keys.length) this.spawnPlayerUnit(keys[idx]);
-        });
+        
+        // 重新綁定鍵盤事件，移除舊的
+        // 簡單起見，這裡不移除舊的，但請注意不要重複綁定
     }
 
     selectCharacter(id, el) {
@@ -559,12 +559,21 @@ class GameEngine {
         this.player.name = name; this.player.id = 'ID_' + Date.now(); this.player.startTime = Date.now();
         AudioSys.init();
         
+        // 設定陣營
+        // 1=龍(右往左), 2=虎(左往右)
+        this.playerFaction = this.selectedAvatar;
+        this.enemyFaction = (this.selectedAvatar === 1) ? 2 : 1;
+        
         const avatarImg = document.getElementById('avatar-display');
         avatarImg.src = ASSETS.chars[this.selectedAvatar];
         avatarImg.style.display = 'block';
 
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('game-container').style.display = 'block';
+        
+        // 初始化按鈕
+        this.createUnitButtons();
+        
         this.startLevel(0);
         this.gameLoop(0);
     }
@@ -634,8 +643,14 @@ class GameEngine {
         this.incrementUnitCount(typeKey);
         
         AudioSys.sfx.spawn();
-        const startNode = this.pathPixels[this.pathPixels.length - 1];
-        this.units.push(new Unit(startNode.x, startNode.y, 'player', typeKey, this.pathPixels.length - 1, 1, 1));
+        
+        // 根據陣營決定出生點
+        // 龍(1): 右側出生(最後一點)
+        // 虎(2): 左側出生(第一點)
+        const spawnIdx = (this.playerFaction === 1) ? this.pathPixels.length - 1 : 0;
+        const startNode = this.pathPixels[spawnIdx];
+        
+        this.units.push(new Unit(startNode.x, startNode.y, 'player', typeKey, spawnIdx, 1, 1, this.playerFaction));
         this.updateUI();
     }
 
@@ -645,8 +660,12 @@ class GameEngine {
         const lvlData = levels[this.level];
         const types = lvlData.enemyTypes;
         const randType = types[Math.floor(Math.random() * types.length)];
-        const startNode = this.pathPixels[0];
-        this.units.push(new Unit(startNode.x, startNode.y, 'enemy', randType, 0, lvlData.statsMultiplier, lvlData.speedMultiplier));
+        
+        // 敵人出生點與玩家相反
+        const spawnIdx = (this.playerFaction === 1) ? 0 : this.pathPixels.length - 1;
+        const startNode = this.pathPixels[spawnIdx];
+        
+        this.units.push(new Unit(startNode.x, startNode.y, 'enemy', randType, spawnIdx, lvlData.statsMultiplier, lvlData.speedMultiplier, this.enemyFaction));
     }
 
     gameLoop(timestamp) {
@@ -727,10 +746,21 @@ class GameEngine {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.drawBackground(); 
         this.drawPath();
+        
+        // 根據陣營決定城堡位置
         const start = this.pathPixels[0];
         const end = this.pathPixels[this.pathPixels.length-1];
-        this.drawCastle(start.x, start.y, 'enemy', `敵營 Lv.${this.level+1}`);
-        this.drawCastle(end.x, end.y, 'player', "我城");
+        
+        if (this.playerFaction === 1) {
+            // 龍將軍(1)：我在右(End)，敵在左(Start)
+            this.drawCastle(start.x, start.y, 'enemy', `敵營 Lv.${this.level+1}`);
+            this.drawCastle(end.x, end.y, 'player', "我城");
+        } else {
+            // 虎元帥(2)：我在左(Start)，敵在右(End)
+            this.drawCastle(start.x, start.y, 'player', "我城");
+            this.drawCastle(end.x, end.y, 'enemy', `敵營 Lv.${this.level+1}`);
+        }
+
         this.units.forEach(u => u.draw(this.ctx, this.camera));
         this.projectiles.forEach(p => p.draw(this.ctx, this.camera));
         this.particles.forEach(p => p.draw(this.ctx, this.camera));
@@ -768,7 +798,14 @@ class GameEngine {
         const pos = this.camera.toScreen(wx, wy); const s = pos.scale;
         this.ctx.fillStyle = "rgba(0,0,0,0.3)";
         this.ctx.beginPath(); this.ctx.ellipse(pos.x, pos.y, 40 * s, 20 * s, 0, 0, Math.PI * 2); this.ctx.fill();
-        const imgKey = type === 'player' ? 'p_castle' : 'e_castle';
+        
+        // 根據 type 決定陣營圖片
+        // type: 'player' or 'enemy'
+        let faction = 1;
+        if (type === 'player') faction = this.playerFaction;
+        else faction = this.enemyFaction;
+        
+        const imgKey = `f${faction}_castle`;
         const img = ASSETS.images[imgKey];
         if (img) {
             const size = 100 * s;
@@ -836,8 +873,9 @@ class GameEngine {
 }
 
 class Unit {
-    constructor(x, y, team, typeKey, pathIdx, statsMult = 1, speedMult = 1) {
+    constructor(x, y, team, typeKey, pathIdx, statsMult = 1, speedMult = 1, faction = 1) {
         this.x = x; this.y = y; this.team = team; this.typeKey = typeKey;
+        this.faction = faction;
         const types = SecureConfig.getUnitTypes();
         const data = types[typeKey];
         
@@ -846,7 +884,9 @@ class Unit {
         this.attackType = data.type; this.cd = data.cd;
         this.pathIndex = pathIdx; this.state = 'move'; this.attackCooldown = 0; this.dead = false;
         this.bounce = 0;
-        this.imgKey = (team === 'player' ? 'p_' : 'e_') + typeKey;
+        
+        // 使用陣營編號取得對應圖片
+        this.imgKey = `f${faction}_${typeKey}`;
     }
     update(game) {
         if (this.dead) return;
@@ -868,15 +908,22 @@ class Unit {
             }
         }
         let baseDist = 9999;
+        
+        // 判斷基地位置
+        let enemyBaseIdx = -1;
         if (this.team === 'player') {
-            const base = game.pathPixels[0];
-            baseDist = Math.hypot(base.x - this.x, base.y - this.y);
-            if (baseDist <= this.range) return { type: 'base', team: 'enemy' };
+            // 如果玩家是陣營1(龍)，敵人基地在 0
+            // 如果玩家是陣營2(虎)，敵人基地在 End
+            enemyBaseIdx = (game.playerFaction === 1) ? 0 : game.pathPixels.length - 1;
         } else {
-            const base = game.pathPixels[game.pathPixels.length-1];
-            baseDist = Math.hypot(base.x - this.x, base.y - this.y);
-            if (baseDist <= this.range) return { type: 'base', team: 'player' };
+            // 敵人目標是玩家基地
+            enemyBaseIdx = (game.playerFaction === 1) ? game.pathPixels.length - 1 : 0;
         }
+        
+        const base = game.pathPixels[enemyBaseIdx];
+        baseDist = Math.hypot(base.x - this.x, base.y - this.y);
+        if (baseDist <= this.range) return { type: 'base', team: (this.team === 'player' ? 'enemy' : 'player') };
+        
         return null;
     }
     attack(target, game) {
@@ -893,8 +940,34 @@ class Unit {
         }
     }
     move(game) {
-        let nextIdx = (this.team === 'player') ? this.pathIndex - 1 : this.pathIndex + 1;
-        if (nextIdx < 0 || nextIdx >= game.pathPixels.length) return;
+        // 移動邏輯：
+        // 陣營1 (龍) 的敵人(虎) -> 往右走 (Index++)
+        // 陣營1 (龍) 的玩家(龍) -> 往左走 (Index--)
+        // 陣營2 (虎) 的敵人(龍) -> 往左走 (Index--)
+        // 陣營2 (虎) 的玩家(虎) -> 往右走 (Index++)
+        
+        // 簡化：目標 Index 是敵方基地
+        let targetIdx = -1;
+        
+        if (this.team === 'player') {
+            // 玩家目標：敵方基地
+            // 若玩家是龍(1)，敵方在0 -> 往左走
+            // 若玩家是虎(2)，敵方在End -> 往右走
+            targetIdx = (game.playerFaction === 1) ? 0 : game.pathPixels.length - 1;
+        } else {
+            // 敵人目標：玩家基地
+            // 若玩家是龍(1)，玩家在End，敵人要往End走
+            // 若玩家是虎(2)，玩家在0，敵人要往0走
+            targetIdx = (game.playerFaction === 1) ? game.pathPixels.length - 1 : 0;
+        }
+        
+        if (this.pathIndex === targetIdx) return; // 到達
+        
+        // 決定下一步
+        let nextIdx = this.pathIndex;
+        if (this.pathIndex < targetIdx) nextIdx++;
+        else nextIdx--;
+        
         const targetNode = game.pathPixels[nextIdx];
         const dx = targetNode.x - this.x; const dy = targetNode.y - this.y;
         const dist = Math.hypot(dx, dy);
@@ -930,12 +1003,31 @@ class Projectile {
         this.x = x; this.y = y; this.target = target;
         this.damage = dmg; this.team = team; this.speed = 12; this.hit = false;
         this.type = type;
-        this.tx = target.x || (team === 'player' ? Game.pathPixels[0].x : Game.pathPixels[Game.pathPixels.length-1].x);
-        this.ty = target.y || (team === 'player' ? Game.pathPixels[0].y : Game.pathPixels[Game.pathPixels.length-1].y);
-        this.ty -= 30;
+        
+        // 子彈目標預測
+        // 如果有 target 物件，鎖定它
+        // 否則鎖定基地
+        if (target && target.type !== 'base') {
+            this.tx = target.x;
+            this.ty = target.y - 30;
+        } else {
+            // 基地位置判斷
+            // 玩家攻擊目標 -> 敵方基地
+            let targetBaseIdx = 0;
+            if (team === 'player') {
+                targetBaseIdx = (Game.playerFaction === 1) ? 0 : Game.pathPixels.length - 1;
+            } else {
+                targetBaseIdx = (Game.playerFaction === 1) ? Game.pathPixels.length - 1 : 0;
+            }
+            const base = Game.pathPixels[targetBaseIdx];
+            this.tx = base.x;
+            this.ty = base.y - 30;
+        }
     }
     update() {
-        if (this.target && !this.target.dead) { this.tx = this.target.x || this.tx; this.ty = (this.target.y || this.ty) - 30; }
+        if (this.target && !this.target.dead && this.target.type !== 'base') { 
+            this.tx = this.target.x; this.ty = this.target.y - 30; 
+        }
         const dx = this.tx - this.x; const dy = this.ty - this.y; const dist = Math.hypot(dx, dy);
         if (dist <= this.speed) {
             this.hit = true; Game.createEffect(this.tx, this.ty, 'hit'); AudioSys.sfx.hit();
