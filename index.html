@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>三國策略攻防戰 (3D自由視角版)v0127</title>
+    <title>三國策略攻防戰 (角色圖像版)</title>
     <style>
         :root {
             --primary-color: #f39c12; /* 三國金 */
@@ -35,12 +35,12 @@
             box-shadow: 0 0 50px rgba(0,0,0,0.8);
             border-radius: 12px;
             overflow: hidden;
-            display: none;
-            cursor: grab; /* 預設游標為抓取手勢 */
+            display: none; /* 登入後顯示 */
+            cursor: grab;
         }
         
         #game-container:active {
-            cursor: grabbing; /* 抓取中 */
+            cursor: grabbing;
         }
         
         @media (max-width: 1220px), (max-height: 820px) {
@@ -52,7 +52,6 @@
 
         canvas {
             display: block;
-            /* 背景紋理現在由 JS 繪製以支援旋轉 */
         }
 
         #ui-layer {
@@ -77,7 +76,7 @@
             backdrop-filter: blur(4px);
         }
 
-        /* Top Bar - 瘦身版 */
+        /* Top Bar */
         #top-bar {
             top: 10px;
             left: 50%;
@@ -93,7 +92,7 @@
         }
 
         .hp-bar-container {
-            width: 200px; /* 縮短血條 */
+            width: 200px;
             height: 16px;
             background: #34495e;
             border-radius: 8px;
@@ -109,7 +108,7 @@
             position: relative;
         }
 
-        /* Camera Controls - 新增 */
+        /* Camera Controls */
         #cam-controls {
             position: absolute;
             right: 20px;
@@ -144,16 +143,18 @@
             left: 50%;
             transform: translateX(-50%);
             display: flex;
-            gap: 8px;
-            padding: 10px 20px;
+            gap: 6px;
+            padding: 10px 15px;
             width: auto;
+            max-width: 95%;
             justify-content: center;
             border-radius: 15px;
+            overflow-x: auto; /* 防止過多按鈕溢出 */
         }
 
         .unit-btn {
-            width: 80px;
-            height: 100px;
+            width: 75px;
+            height: 95px;
             border: 2px solid #95a5a6;
             border-radius: 8px;
             background: linear-gradient(to bottom, #fff, #ecf0f1);
@@ -166,18 +167,47 @@
             position: relative;
             box-shadow: 0 4px 0 #7f8c8d;
             overflow: hidden;
+            flex-shrink: 0;
         }
 
         .unit-btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #7f8c8d; }
-        .unit-btn.disabled { filter: grayscale(100%); opacity: 0.6; cursor: not-allowed; background: #bdc3c7; }
-        .unit-icon { font-size: 32px; margin-bottom: 2px; }
-        .unit-name { font-size: 12px; font-weight: 800; color: #2c3e50; }
+        
+        .unit-btn.disabled { 
+            filter: grayscale(100%); 
+            opacity: 0.6; 
+            cursor: not-allowed; 
+            background: #bdc3c7; 
+        }
+        
+        /* 特別標註大將軍的樣式 */
+        .unit-btn[id="btn-general"] {
+            border-color: gold;
+            background: linear-gradient(to bottom, #fcf3cf, #f9e79f);
+        }
+
+        .unit-img-preview {
+            width: 40px;
+            height: 40px;
+            object-fit: contain;
+            margin-bottom: 2px;
+        }
+
+        .unit-name { font-size: 11px; font-weight: 800; color: #2c3e50; }
         .unit-cost { 
-            background: gold; color: #d35400; padding: 1px 6px; 
-            border-radius: 4px; font-size: 12px; border: 1px solid #e67e22;
+            background: gold; color: #d35400; padding: 1px 4px; 
+            border-radius: 4px; font-size: 11px; border: 1px solid #e67e22;
             margin-top: 2px; font-weight: bold;
         }
-        .hotkey { position: absolute; top: 2px; right: 5px; font-size: 10px; color: #7f8c8d; }
+        .hotkey { position: absolute; top: 2px; right: 5px; font-size: 9px; color: #7f8c8d; }
+        
+        .limit-badge {
+            position: absolute;
+            top: 2px; left: 2px;
+            background: #c0392b; color: white;
+            font-size: 9px; padding: 1px 3px;
+            border-radius: 4px;
+            display: none;
+        }
 
         /* Screens */
         #login-screen, #result-screen {
@@ -205,7 +235,6 @@
         }
         button.start-btn:hover { transform: translateY(-3px); box-shadow: 0 9px 0 #922b21; }
 
-        /* Message */
         #message-area {
             position: absolute; top: 40%; left: 50%;
             transform: translate(-50%, -50%);
@@ -222,9 +251,10 @@
     <div id="login-screen">
         <div class="panel-box">
             <h1 style="font-size: 48px; margin-bottom: 20px;">⚔️ 三國策略攻防戰</h1>
-            <p style="font-size: 18px; color: #7f8c8d;">全3D視角・自由縮放</p>
+            <p style="font-size: 18px; color: #7f8c8d;">全角色登場・3D自由視角</p>
             <input type="text" id="player-name" placeholder="請輸入將軍大名" maxlength="10">
             <button class="start-btn" onclick="Game.initLogin()">出征</button>
+            <p id="loading-text" style="color: #e67e22; font-size: 12px; margin-top: 10px;">正在徵召兵馬 (載入圖片)...</p>
         </div>
     </div>
 
@@ -283,6 +313,64 @@
 
 <script>
 /**
+ * 圖片資源管理
+ * 使用 GitHub Raw 連結
+ */
+const ASSETS = {
+    player: {
+        castle: "https://raw.githubusercontent.com/btosichen/2026-Tower-Defense-Games/ac4b7a1f6d922e4765e29eef26384cd26bd7afd8/logo-1-0%20(90%20x%2090%20%E5%83%8F%E7%B4%A0).png",
+        sword: "https://raw.githubusercontent.com/btosichen/2026-Tower-Defense-Games/ac4b7a1f6d922e4765e29eef26384cd26bd7afd8/logo-1-1%20(50%20x%2050%20%E5%83%8F%E7%B4%A0).png",
+        bow: "https://raw.githubusercontent.com/btosichen/2026-Tower-Defense-Games/ac4b7a1f6d922e4765e29eef26384cd26bd7afd8/logo-1-2(50%20x%2050%20%E5%83%8F%E7%B4%A0).png",
+        spear: "https://raw.githubusercontent.com/btosichen/2026-Tower-Defense-Games/ac4b7a1f6d922e4765e29eef26384cd26bd7afd8/logo-1-3(50%20x%2050%20%E5%83%8F%E7%B4%A0).png",
+        cavalry: "https://raw.githubusercontent.com/btosichen/2026-Tower-Defense-Games/ac4b7a1f6d922e4765e29eef26384cd26bd7afd8/logo-1-4(50%20x%2050%20%E5%83%8F%E7%B4%A0).png",
+        vanguard: "https://raw.githubusercontent.com/btosichen/2026-Tower-Defense-Games/ac4b7a1f6d922e4765e29eef26384cd26bd7afd8/logo-1-5(50%20x%2050%20%E5%83%8F%E7%B4%A0).png",
+        vice: "https://raw.githubusercontent.com/btosichen/2026-Tower-Defense-Games/ac4b7a1f6d922e4765e29eef26384cd26bd7afd8/logo-1-6(50%20x%2050%20%E5%83%8F%E7%B4%A0).png",
+        general: "https://raw.githubusercontent.com/btosichen/2026-Tower-Defense-Games/ac4b7a1f6d922e4765e29eef26384cd26bd7afd8/logo-1-7(50%20x%2050%20%E5%83%8F%E7%B4%A0).png",
+        advisor: "https://raw.githubusercontent.com/btosichen/2026-Tower-Defense-Games/ac4b7a1f6d922e4765e29eef26384cd26bd7afd8/logo-1-8(50%20x%2050%20%E5%83%8F%E7%B4%A0).png"
+    },
+    enemy: {
+        castle: "https://raw.githubusercontent.com/btosichen/2026-Tower-Defense-Games/ac4b7a1f6d922e4765e29eef26384cd26bd7afd8/logo-2-0%20(90%20x%2090%20%E5%83%8F%E7%B4%A0).png",
+        sword: "https://raw.githubusercontent.com/btosichen/2026-Tower-Defense-Games/ac4b7a1f6d922e4765e29eef26384cd26bd7afd8/logo-2-1(50%20x%2050%20%E5%83%8F%E7%B4%A0).png",
+        bow: "https://raw.githubusercontent.com/btosichen/2026-Tower-Defense-Games/ac4b7a1f6d922e4765e29eef26384cd26bd7afd8/logo-2-2(50%20x%2050%20%E5%83%8F%E7%B4%A0).png",
+        spear: "https://raw.githubusercontent.com/btosichen/2026-Tower-Defense-Games/ac4b7a1f6d922e4765e29eef26384cd26bd7afd8/logo-2-3(50%20x%2050%20%E5%83%8F%E7%B4%A0).png",
+        cavalry: "https://raw.githubusercontent.com/btosichen/2026-Tower-Defense-Games/ac4b7a1f6d922e4765e29eef26384cd26bd7afd8/logo-2-4(50%20x%2050%20%E5%83%8F%E7%B4%A0).png",
+        vanguard: "https://raw.githubusercontent.com/btosichen/2026-Tower-Defense-Games/ac4b7a1f6d922e4765e29eef26384cd26bd7afd8/logo-2-5(50%20x%2050%20%E5%83%8F%E7%B4%A0).png",
+        vice: "https://raw.githubusercontent.com/btosichen/2026-Tower-Defense-Games/ac4b7a1f6d922e4765e29eef26384cd26bd7afd8/logo-2-6(50%20x%2050%20%E5%83%8F%E7%B4%A0).png",
+        general: "https://raw.githubusercontent.com/btosichen/2026-Tower-Defense-Games/ac4b7a1f6d922e4765e29eef26384cd26bd7afd8/logo-2-7(50%20x%2050%20%E5%83%8F%E7%B4%A0).png",
+        advisor: "https://raw.githubusercontent.com/btosichen/2026-Tower-Defense-Games/ac4b7a1f6d922e4765e29eef26384cd26bd7afd8/logo-2-8(50%20x%2050%20%E5%83%8F%E7%B4%A0).png"
+    },
+    images: {} // 載入後的圖片物件
+};
+
+const ImageLoader = {
+    loadAll: function(callback) {
+        let loaded = 0;
+        const total = 18; // 2 castles + 8 units * 2 teams
+        const checkLoad = () => {
+            loaded++;
+            if (loaded >= total && callback) callback();
+        };
+
+        // 載入玩家圖片
+        for (let key in ASSETS.player) {
+            const img = new Image();
+            img.src = ASSETS.player[key];
+            img.onload = checkLoad;
+            img.onerror = checkLoad; // 即使失敗也繼續，避免卡死
+            ASSETS.images[`p_${key}`] = img;
+        }
+        // 載入敵人圖片
+        for (let key in ASSETS.enemy) {
+            const img = new Image();
+            img.src = ASSETS.enemy[key];
+            img.onload = checkLoad;
+            img.onerror = checkLoad;
+            ASSETS.images[`e_${key}`] = img;
+        }
+    }
+};
+
+/**
  * 音效管理器
  */
 const AudioSys = {
@@ -311,14 +399,12 @@ const AudioSys = {
         attack_melee: () => AudioSys.playTone(100, 'sawtooth', 0.1, 0.05),
         attack_range: () => AudioSys.playTone(800, 'sine', 0.1, 0.05),
         hit: () => AudioSys.playTone(150, 'square', 0.1, 0.05),
+        spell: () => { if(AudioSys.ctx) [600, 500, 400].forEach((f, i) => setTimeout(() => AudioSys.playTone(f, 'sine', 0.3, 0.1), i * 100)); },
         win_level: () => { if(AudioSys.ctx) [440, 554, 659].forEach((f, i) => setTimeout(() => AudioSys.playTone(f, 'square', 0.4, 0.1), i * 100)); },
         game_over: () => { if(AudioSys.ctx) [300, 250, 200].forEach((f, i) => setTimeout(() => AudioSys.playTone(f, 'sawtooth', 0.5, 0.1), i * 300)); }
     }
 };
 
-/**
- * 鏡頭系統 (負責座標轉換)
- */
 class Camera {
     constructor(width, height) {
         this.width = width;
@@ -326,123 +412,57 @@ class Camera {
         this.x = width / 2;
         this.y = height / 2;
         this.zoom = 1;
-        this.angle = 0; // 旋轉角度 (弧度)
+        this.angle = 0; 
         this.dragStart = null;
     }
-
-    // 將世界座標轉換為螢幕座標
     toScreen(x, y) {
-        // 1. 相對於鏡頭中心的位移
         let dx = x - this.x;
         let dy = y - this.y;
-
-        // 2. 旋轉
         let cos = Math.cos(this.angle);
         let sin = Math.sin(this.angle);
         let rx = dx * cos - dy * sin;
         let ry = dx * sin + dy * cos;
-
-        // 3. 縮放並加上螢幕中心偏移
         return {
             x: this.width / 2 + rx * this.zoom,
             y: this.height / 2 + ry * this.zoom,
             scale: this.zoom
         };
     }
-
-    // 控制功能
     zoomIn() { this.zoom = Math.min(this.zoom * 1.1, 3); }
     zoomOut() { this.zoom = Math.max(this.zoom / 1.1, 0.5); }
     rotate(rad) { this.angle += rad; }
     reset() { this.zoom = 1; this.angle = 0; this.x = this.width/2; this.y = this.height/2; }
     
-    // 拖曳邏輯
     handleMouseDown(e) { this.dragStart = { x: e.clientX, y: e.clientY, camX: this.x, camY: this.y }; }
     handleMouseMove(e) {
         if (!this.dragStart) return;
         const dx = (e.clientX - this.dragStart.x) / this.zoom;
         const dy = (e.clientY - this.dragStart.y) / this.zoom;
-        
-        // 逆旋轉位移量，確保拖曳方向符合視覺
         let cos = Math.cos(-this.angle);
         let sin = Math.sin(-this.angle);
-        
         this.x = this.dragStart.camX - (dx * cos - dy * sin);
         this.y = this.dragStart.camY - (dx * sin + dy * cos);
     }
     handleMouseUp() { this.dragStart = null; }
-    handleWheel(e) {
-        e.preventDefault();
-        if (e.deltaY < 0) this.zoomIn(); else this.zoomOut();
-    }
+    handleWheel(e) { e.preventDefault(); if (e.deltaY < 0) this.zoomIn(); else this.zoomOut(); }
 }
 
-/**
- * 繪圖輔助: 支援旋轉的 3D 圓柱體
- */
-function drawCylinder3D(ctx, screenPos, radius, height, color, sideColor) {
-    const x = screenPos.x;
-    const y = screenPos.y;
-    const s = screenPos.scale;
-    const r = radius * s;
-    const h = height * s;
-
-    // 因為我們是轉換了中心點，但沒有旋轉 Canvas Context (為了保持 UI/文字正常)，
-    // 所以圓柱體的「高度」永遠是向上的 (Screen Y 負方向)。
-    // 這樣無論地圖怎麼轉，建築物永遠朝向螢幕上方，符合 2.5D 遊戲邏輯。
-
-    // 1. 底部陰影
-    ctx.fillStyle = "rgba(0,0,0,0.3)";
-    ctx.beginPath();
-    ctx.ellipse(x, y, r, r * 0.4, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // 2. 側面 (漸層)
-    const gradient = ctx.createLinearGradient(x - r, y, x + r, y);
-    gradient.addColorStop(0, sideColor);
-    gradient.addColorStop(0.2, color);
-    gradient.addColorStop(0.5, color);
-    gradient.addColorStop(0.8, color);       
-    gradient.addColorStop(1, sideColor);
-
-    ctx.fillStyle = gradient;
-    ctx.beginPath();
-    ctx.moveTo(x - r, y - h);
-    ctx.lineTo(x + r, y - h);
-    ctx.lineTo(x + r, y);
-    ctx.lineTo(x - r, y);
-    ctx.closePath();
-    ctx.fill();
-    ctx.strokeStyle = "rgba(0,0,0,0.1)"; ctx.lineWidth = 1; ctx.stroke();
-
-    // 3. 頂部
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.ellipse(x, y - h, r, r * 0.4, 0, 0, Math.PI * 2);
-    ctx.fill();
-    // 高光
-    ctx.fillStyle = "rgba(255,255,255,0.15)";
-    ctx.beginPath();
-    ctx.ellipse(x, y - h, r * 0.8, r * 0.3, 0, 0, Math.PI * 2);
-    ctx.fill();
-}
-
-/**
- * 遊戲設定
- */
 const CONFIG = {
     gridSize: 80, 
     width: 15, height: 10,
     gasUrl: 'https://script.google.com/macros/s/AKfycbwqZFv8Jzk4A1ERYbzljRudebPBTlBn4OcSsFWfWBGLTIKGSMDEd3focinsGovte4c9/exec'
 };
 
+// 兵種定義更新
 const UNIT_TYPES = {
-    sword:    { name: '刀兵',   cost: 50,  hp: 120, atk: 15, range: 40,  speed: 2.5, type: 'melee',  icon: '🗡️', color: '#f1c40f', cd: 60 },
-    bow:      { name: '弓兵',   cost: 120, hp: 80,  atk: 25, range: 250, speed: 2.5, type: 'ranged', icon: '🏹', color: '#2ecc71', cd: 80 },
-    spear:    { name: '槍兵',   cost: 200, hp: 180, atk: 40, range: 70,  speed: 2.0, type: 'melee',  icon: '🔱', color: '#3498db', cd: 100 },
-    vanguard: { name: '前鋒',   cost: 300, hp: 250, atk: 50, range: 40,  speed: 4.0, type: 'melee',  icon: '🏇', color: '#e67e22', cd: 150 },
-    vice:     { name: '副將軍', cost: 500, hp: 600, atk: 70, range: 50,  speed: 1.5, type: 'melee',  icon: '🛡️', color: '#9b59b6', cd: 300 },
-    general:  { name: '大將軍', cost: 900, hp: 1200,atk: 120,range: 60,  speed: 1.2, type: 'melee',  icon: '👑', color: '#c0392b', cd: 500 }
+    sword:    { name: '刀兵',   cost: 50,  hp: 120, atk: 15, range: 40,  speed: 2.5, type: 'melee', cd: 60 },
+    bow:      { name: '弓兵',   cost: 120, hp: 80,  atk: 25, range: 250, speed: 2.5, type: 'ranged', cd: 80 },
+    spear:    { name: '槍兵',   cost: 200, hp: 180, atk: 40, range: 70,  speed: 2.0, type: 'melee', cd: 100 },
+    cavalry:  { name: '騎兵',   cost: 280, hp: 220, atk: 45, range: 40,  speed: 5.0, type: 'melee', cd: 120 }, // 新增: 快速突擊
+    vanguard: { name: '前鋒',   cost: 350, hp: 300, atk: 55, range: 40,  speed: 3.5, type: 'melee', cd: 150 },
+    vice:     { name: '副將軍', cost: 500, hp: 600, atk: 70, range: 50,  speed: 1.5, type: 'melee', cd: 300 },
+    advisor:  { name: '國師',   cost: 800, hp: 200, atk: 100, range: 300, speed: 1.5, type: 'magic', cd: 400 }, // 新增: 高傷遠程
+    general:  { name: '大將軍', cost: 1500, hp: 2000,atk: 200, range: 60, speed: 1.2, type: 'melee', cd: 600, limit: 1 } // 更新: 限制1隻
 };
 
 const MAPS = [
@@ -461,10 +481,11 @@ const MAPS = [
 const LEVELS = Array.from({length: 10}, (_, i) => ({
     enemySpawnRate: Math.max(60, 180 - i * 12),
     goldRate: 1 + i * 0.5,
-    enemyTypes: i < 2 ? ['sword', 'sword', 'spear'] :
-                i < 4 ? ['sword', 'bow', 'spear', 'vanguard'] :
-                i < 7 ? ['spear', 'bow', 'vanguard', 'vice'] :
-                        ['vanguard', 'vice', 'general'],
+    enemyTypes: i < 1 ? ['sword', 'sword', 'spear'] :
+                i < 3 ? ['sword', 'bow', 'spear', 'cavalry'] :
+                i < 6 ? ['spear', 'bow', 'cavalry', 'vanguard', 'vice'] :
+                i < 8 ? ['vanguard', 'vice', 'advisor'] :
+                        ['vice', 'advisor', 'general'], // 後期出現大將軍
     statsMultiplier: 1 + i,
     speedMultiplier: 1 + (i * 0.1)
 }));
@@ -479,22 +500,27 @@ class GameEngine {
         this.gameState = {
             level: 0, gold: 0,
             baseHpPlayer: 1000, baseHpEnemy: 1000, maxBaseHp: 1000,
-            isGameOver: false, enemySpawnTimer: 0, isLevelTransitioning: false
+            isGameOver: false, enemySpawnTimer: 0, isLevelTransitioning: false,
+            // 單位計數器 (目前場上該兵種數量)
+            playerUnitCounts: {} 
         };
 
         this.units = []; this.projectiles = []; this.particles = []; this.pathPixels = [];
         this.lastTime = 0;
         this.cooldowns = {}; 
-        this.createUnitButtons();
+        
+        // 先載入圖片再建立按鈕
+        ImageLoader.loadAll(() => {
+            document.getElementById('loading-text').innerText = "圖片載入完成，請點擊出征！";
+            this.createUnitButtons();
+        });
 
-        // 綁定鏡頭事件
         const container = document.getElementById('game-container');
         container.addEventListener('mousedown', e => this.camera.handleMouseDown(e));
         window.addEventListener('mousemove', e => this.camera.handleMouseMove(e));
         window.addEventListener('mouseup', () => this.camera.handleMouseUp());
         container.addEventListener('wheel', e => this.camera.handleWheel(e));
         
-        // 綁定鍵盤旋轉
         document.addEventListener('keydown', e => {
             if (e.key === 'q' || e.key === 'Q') this.camera.rotate(-0.1);
             if (e.key === 'e' || e.key === 'E') this.camera.rotate(0.1);
@@ -506,22 +532,38 @@ class GameEngine {
         const bar = document.getElementById('bottom-bar');
         bar.innerHTML = '';
         const keys = Object.keys(UNIT_TYPES);
+        this.cooldowns = {}; // Reset
+        
         keys.forEach((key, index) => {
             const u = UNIT_TYPES[key];
             const div = document.createElement('div');
             div.className = 'unit-btn';
             div.id = `btn-${key}`;
             div.onclick = () => this.spawnPlayerUnit(key);
+            
+            // 使用預覽圖
+            const imgSrc = ASSETS.player[key];
+            
             div.innerHTML = `
                 <span class="hotkey">${index+1}</span>
-                <div class="unit-icon">${u.icon}</div>
+                <div class="limit-badge" id="limit-${key}">限1</div>
+                <img src="${imgSrc}" class="unit-img-preview">
                 <div class="unit-name">${u.name}</div>
                 <div class="unit-cost">$${u.cost}</div>
                 <div class="cooldown-overlay" style="position:absolute;bottom:0;left:0;width:100%;height:0%;background:rgba(0,0,0,0.5);transition:height 0.1s;"></div>
             `;
             bar.appendChild(div);
             this.cooldowns[key] = 0;
+            this.gameState.playerUnitCounts[key] = 0;
+            
+            // 如果有限制，顯示標籤
+            if (u.limit) {
+                div.querySelector('.limit-badge').style.display = 'block';
+            }
         });
+        
+        // 移除舊的 event listener 避免重複綁定 (這在簡單範例中通常不處理，但嚴謹點好)
+        // 這裡簡化，假設只執行一次 init
         document.addEventListener('keydown', (e) => {
             const idx = parseInt(e.key) - 1;
             if (idx >= 0 && idx < keys.length) this.spawnPlayerUnit(keys[idx]);
@@ -544,7 +586,7 @@ class GameEngine {
         if (lvl >= LEVELS.length) { AudioSys.sfx.win_level(); return this.endGame(true, "天下統一！三國歸一！"); }
         
         this.gameState.level = lvl;
-        this.camera.reset(); // 每關重置視角
+        this.camera.reset(); 
         
         const mapPoints = MAPS[lvl % MAPS.length];
         this.pathPixels = mapPoints.map(p => ({
@@ -557,7 +599,7 @@ class GameEngine {
         this.gameState.baseHpEnemy = this.gameState.maxBaseHp * lvlConfig.statsMultiplier; 
         this.gameState.baseHpPlayer = 1000 + (lvl * 200);
         
-        if (lvl === 0) this.gameState.gold = 500;
+        if (lvl === 0) this.gameState.gold = 1000; // 初始金錢增加以便測試新兵種
         else {
             const bonus = 1000 + (lvl * 500);
             this.gameState.gold += bonus;
@@ -565,6 +607,9 @@ class GameEngine {
         }
 
         this.units = []; this.projectiles = []; this.particles = []; this.gameState.enemySpawnTimer = 0;
+        // 重置單位計數
+        for(let k in this.gameState.playerUnitCounts) this.gameState.playerUnitCounts[k] = 0;
+        
         this.updateUI();
         document.getElementById('enemy-stats-hint').innerText = `(強度: ${Math.round(lvlConfig.statsMultiplier * 100)}%)`;
         setTimeout(() => { AudioSys.sfx.win_level(); this.showMessage(`第 ${lvl+1} 關 - 進攻！`); }, 500);
@@ -573,10 +618,20 @@ class GameEngine {
     spawnPlayerUnit(typeKey) {
         if (this.gameState.isLevelTransitioning || this.gameState.isGameOver) return;
         const data = UNIT_TYPES[typeKey];
+        
+        // 檢查金錢
         if (this.gameState.gold < data.cost) return this.showMessage("軍費不足", true);
+        // 檢查冷卻
         if (this.cooldowns[typeKey] > 0) return;
+        // 檢查數量限制
+        if (data.limit && (this.gameState.playerUnitCounts[typeKey] || 0) >= data.limit) {
+            return this.showMessage(`戰場只能有一位${data.name}！`, true);
+        }
 
-        this.gameState.gold -= data.cost; this.cooldowns[typeKey] = data.cd; 
+        this.gameState.gold -= data.cost; 
+        this.cooldowns[typeKey] = data.cd; 
+        this.gameState.playerUnitCounts[typeKey] = (this.gameState.playerUnitCounts[typeKey] || 0) + 1;
+        
         AudioSys.sfx.spawn();
         const startNode = this.pathPixels[this.pathPixels.length - 1];
         this.units.push(new Unit(startNode.x, startNode.y, 'player', typeKey, this.pathPixels.length - 1, 1, 1));
@@ -588,6 +643,9 @@ class GameEngine {
         const lvlData = LEVELS[this.gameState.level];
         const types = lvlData.enemyTypes;
         const randType = types[Math.floor(Math.random() * types.length)];
+        
+        // 敵方大將軍也要檢查限制嗎？稍微放寬，讓電腦隨機出，增加難度
+        
         const startNode = this.pathPixels[0];
         this.units.push(new Unit(startNode.x, startNode.y, 'enemy', randType, 0, lvlData.statsMultiplier, lvlData.speedMultiplier));
     }
@@ -604,7 +662,7 @@ class GameEngine {
         const lvlData = LEVELS[this.gameState.level];
         if (!this.gameState.isLevelTransitioning) {
             this.gameState.gold += lvlData.goldRate * 0.5; 
-            if (this.gameState.gold > 20000) this.gameState.gold = 20000;
+            if (this.gameState.gold > 50000) this.gameState.gold = 50000;
         }
 
         this.gameState.enemySpawnTimer++;
@@ -620,8 +678,15 @@ class GameEngine {
                 const overlay = btn.querySelector('.cooldown-overlay');
                 const percent = (this.cooldowns[key] / UNIT_TYPES[key].cd) * 100;
                 overlay.style.height = `${percent}%`;
-                if(percent <= 0 && this.gameState.gold < UNIT_TYPES[key].cost) btn.classList.add('disabled');
-                else btn.classList.remove('disabled');
+                
+                const data = UNIT_TYPES[key];
+                const isLimited = data.limit && (this.gameState.playerUnitCounts[key] || 0) >= data.limit;
+                
+                if((percent <= 0 && this.gameState.gold < data.cost) || isLimited) {
+                    btn.classList.add('disabled');
+                } else {
+                    btn.classList.remove('disabled');
+                }
             }
         }
 
@@ -630,6 +695,11 @@ class GameEngine {
             const u = this.units[i];
             u.update(this);
             if (u.dead) {
+                // 減少計數
+                if (u.team === 'player' && this.gameState.playerUnitCounts[u.typeKey] > 0) {
+                    this.gameState.playerUnitCounts[u.typeKey]--;
+                }
+                
                 this.units.splice(i, 1);
                 if (u.team === 'enemy') {
                     this.gameState.gold += UNIT_TYPES[u.typeKey].cost * 0.3 * lvlData.statsMultiplier;
@@ -662,63 +732,41 @@ class GameEngine {
     draw() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
-        // 1. 繪製世界網格 (需變換)
         this.drawGrid();
-
-        // 2. 繪製路徑 (需變換)
         this.drawPath();
 
         const start = this.pathPixels[0];
         const end = this.pathPixels[this.pathPixels.length-1];
         
-        // 3. 繪製基地 (使用 3D 投影)
-        const startPos = this.camera.toScreen(start.x, start.y);
-        const endPos = this.camera.toScreen(end.x, end.y);
-        const enemyScale = 1 + (this.gameState.level * 0.1);
-        
-        drawCylinder3D(this.ctx, startPos, 50 * enemyScale, 80 * enemyScale, '#e74c3c', '#c0392b');
-        this.drawText(startPos.x, startPos.y - (100 * enemyScale * startPos.scale), `敵營 Lv.${this.gameState.level+1}`, "24px Arial", "#fff");
-        
-        drawCylinder3D(this.ctx, endPos, 50, 80, '#3498db', '#2980b9');
-        this.drawText(endPos.x, endPos.y - (100 * endPos.scale), "我城", "24px Arial", "#fff");
+        // 繪製基地 (改用圖片)
+        this.drawCastle(start.x, start.y, 'enemy', `敵營 Lv.${this.gameState.level+1}`);
+        this.drawCastle(end.x, end.y, 'player', "我城");
 
-        // 4. 繪製單位與特效
         this.units.forEach(u => u.draw(this.ctx, this.camera));
         this.projectiles.forEach(p => p.draw(this.ctx, this.camera));
         this.particles.forEach(p => p.draw(this.ctx, this.camera));
     }
 
     drawGrid() {
-        // 簡單繪製一個大背景框表示邊界
-        const tl = this.camera.toScreen(0, 0);
-        const br = this.camera.toScreen(CONFIG.width * CONFIG.gridSize, CONFIG.height * CONFIG.gridSize);
-        // 這邊簡化處理，只畫邊框，網格若要旋轉需要複雜運算
-        this.ctx.strokeStyle = "rgba(0,0,0,0.1)";
-        this.ctx.lineWidth = 2;
-        this.ctx.beginPath();
-        
-        // 繪製四個角
+        // 簡化網格背景
         const p1 = this.camera.toScreen(0, 0);
         const p2 = this.camera.toScreen(1200, 0);
         const p3 = this.camera.toScreen(1200, 800);
         const p4 = this.camera.toScreen(0, 800);
         
-        this.ctx.moveTo(p1.x, p1.y);
-        this.ctx.lineTo(p2.x, p2.y);
-        this.ctx.lineTo(p3.x, p3.y);
-        this.ctx.lineTo(p4.x, p4.y);
+        this.ctx.strokeStyle = "rgba(0,0,0,0.1)";
+        this.ctx.lineWidth = 2;
+        this.ctx.beginPath();
+        this.ctx.moveTo(p1.x, p1.y); this.ctx.lineTo(p2.x, p2.y);
+        this.ctx.lineTo(p3.x, p3.y); this.ctx.lineTo(p4.x, p4.y);
         this.ctx.closePath();
         this.ctx.stroke();
-        
-        // 填充草地紋理
         this.ctx.fillStyle = "rgba(169, 223, 191, 0.3)";
         this.ctx.fill();
     }
 
     drawPath() {
         this.ctx.lineCap = 'round'; this.ctx.lineJoin = 'round';
-        
-        // 路徑路面
         this.ctx.lineWidth = 70 * this.camera.zoom;
         this.ctx.strokeStyle = '#e6d0ce'; 
         this.ctx.beginPath();
@@ -731,6 +779,33 @@ class GameEngine {
             }
         }
         this.ctx.stroke();
+    }
+
+    drawCastle(wx, wy, type, label) {
+        const pos = this.camera.toScreen(wx, wy);
+        const s = pos.scale;
+        
+        // 陰影
+        this.ctx.fillStyle = "rgba(0,0,0,0.3)";
+        this.ctx.beginPath();
+        this.ctx.ellipse(pos.x, pos.y, 40 * s, 20 * s, 0, 0, Math.PI * 2);
+        this.ctx.fill();
+
+        // 圖片
+        const imgKey = type === 'player' ? 'p_castle' : 'e_castle';
+        const img = ASSETS.images[imgKey];
+        if (img) {
+            const size = 100 * s;
+            // 讓城堡立在點上 (y軸向上偏移)
+            this.ctx.drawImage(img, pos.x - size/2, pos.y - size, size, size);
+        } else {
+            // Fallback
+            this.ctx.fillStyle = type === 'player' ? 'blue' : 'red';
+            this.ctx.fillRect(pos.x - 20*s, pos.y - 40*s, 40*s, 40*s);
+        }
+
+        // 文字
+        this.drawText(pos.x, pos.y - 110 * s, label, `${20 * s}px Arial`, "#fff");
     }
 
     drawText(x, y, text, font, color) {
@@ -790,9 +865,12 @@ class Unit {
         const data = UNIT_TYPES[typeKey];
         this.name = data.name; this.maxHp = data.hp * statsMult; this.hp = this.maxHp;
         this.atk = data.atk * statsMult; this.range = data.range; this.speed = data.speed * speedMult;
-        this.attackType = data.type; this.icon = data.icon; this.color = data.color;
+        this.attackType = data.type; this.cd = data.cd;
         this.pathIndex = pathIdx; this.state = 'move'; this.attackCooldown = 0; this.dead = false;
-        this.visualHeight = (typeKey === 'general') ? 50 : 30; this.bounce = 0;
+        this.bounce = 0;
+        
+        // 圖片 key
+        this.imgKey = (team === 'player' ? 'p_' : 'e_') + typeKey;
     }
 
     update(game) {
@@ -829,9 +907,10 @@ class Unit {
     }
 
     attack(target, game) {
-        if (this.attackType === 'ranged') {
-            game.projectiles.push(new Projectile(this.x, this.y - this.visualHeight, target, this.atk, this.team));
-            AudioSys.sfx.attack_range();
+        if (this.attackType === 'ranged' || this.attackType === 'magic') {
+            game.projectiles.push(new Projectile(this.x, this.y - 30, target, this.atk, this.team, this.attackType));
+            if(this.attackType === 'magic') AudioSys.sfx.spell();
+            else AudioSys.sfx.attack_range();
         } else {
             game.createEffect(target.x || this.x, target.y || this.y, 'hit');
             AudioSys.sfx.attack_melee();
@@ -854,71 +933,81 @@ class Unit {
     }
 
     takeDamage(amount, game) {
-        this.hp -= amount; game.createEffect(this.x, this.y - this.visualHeight, 'blood');
+        this.hp -= amount; game.createEffect(this.x, this.y - 30, 'blood');
         if (this.hp <= 0) { this.dead = true; AudioSys.sfx.hit(); }
     }
 
     draw(ctx, camera) {
-        // 取得轉換後的螢幕座標
         const pos = camera.toScreen(this.x, this.y);
         const s = pos.scale;
-        const drawY = pos.y - (this.visualHeight * s) - (this.bounce * s);
+        const drawY = pos.y - (30 * s) - (this.bounce * s); // 30為圖片基底偏移
 
-        // 3D 投影繪製
         // 腳底陰影
         ctx.fillStyle = "rgba(0,0,0,0.3)";
         ctx.beginPath();
-        ctx.ellipse(pos.x, pos.y, 18 * s, 10 * s, 0, 0, Math.PI*2);
+        ctx.ellipse(pos.x, pos.y, 15 * s, 8 * s, 0, 0, Math.PI*2);
         ctx.fill();
 
-        // 身體 (圓球+漸層)
-        const grad = ctx.createRadialGradient(pos.x - 5*s, drawY - 5*s, 2*s, pos.x, drawY, 20*s);
-        grad.addColorStop(0, this.color);
-        grad.addColorStop(1, this.team === 'player' ? '#2980b9' : '#c0392b');
-
-        ctx.fillStyle = grad;
-        ctx.lineWidth = 2 * s;
-        ctx.strokeStyle = '#fff';
-        
-        ctx.beginPath();
-        ctx.arc(pos.x, drawY, 22 * s, 0, Math.PI*2);
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.font = `${24 * s}px Arial`;
-        ctx.fillStyle = "#fff";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(this.icon, pos.x, drawY);
+        // 繪製角色圖片
+        const img = ASSETS.images[this.imgKey];
+        if (img) {
+            const size = 50 * s;
+            // 繪製在 drawY 上方 (圖片中心對齊 x)
+            ctx.drawImage(img, pos.x - size/2, pos.y - size - (this.bounce * s), size, size);
+        } else {
+            // Fallback 圓形
+            ctx.fillStyle = this.team === 'player' ? 'blue' : 'red';
+            ctx.beginPath(); ctx.arc(pos.x, drawY, 10*s, 0, Math.PI*2); ctx.fill();
+        }
 
         // 血條
         const hpPct = this.hp / this.maxHp;
-        const barY = drawY - (35 * s);
+        const barY = pos.y - (55 * s) - (this.bounce * s);
         ctx.fillStyle = "#555";
-        ctx.fillRect(pos.x - (18 * s), barY, 36 * s, 6 * s);
+        ctx.fillRect(pos.x - (15 * s), barY, 30 * s, 4 * s);
         ctx.fillStyle = hpPct > 0.5 ? "#2ecc71" : "#e74c3c";
-        ctx.fillRect(pos.x - (18 * s), barY, (36 * s) * hpPct, 6 * s);
+        ctx.fillRect(pos.x - (15 * s), barY, (30 * s) * hpPct, 4 * s);
     }
 }
 
 class Projectile {
-    constructor(x, y, target, dmg, team) {
+    constructor(x, y, target, dmg, team, type = 'ranged') {
         this.x = x; this.y = y; this.target = target;
         this.damage = dmg; this.team = team; this.speed = 12; this.hit = false;
+        this.type = type; // ranged or magic
         this.tx = target.x || (team === 'player' ? Game.pathPixels[0].x : Game.pathPixels[Game.pathPixels.length-1].x);
         this.ty = target.y || (team === 'player' ? Game.pathPixels[0].y : Game.pathPixels[Game.pathPixels.length-1].y);
-        if(target.visualHeight) this.ty -= target.visualHeight;
+        this.ty -= 30; // Aim center
     }
 
     update() {
         if (this.target && !this.target.dead) {
             this.tx = this.target.x || this.tx;
-            this.ty = (this.target.y || this.ty) - (this.target.visualHeight || 30);
+            this.ty = (this.target.y || this.ty) - 30;
         }
         const dx = this.tx - this.x; const dy = this.ty - this.y;
         const dist = Math.hypot(dx, dy);
         if (dist <= this.speed) {
-            this.hit = true; Game.createEffect(this.tx, this.ty, 'hit'); AudioSys.sfx.hit();
+            this.hit = true; 
+            Game.createEffect(this.tx, this.ty, 'hit'); 
+            AudioSys.sfx.hit();
+            
+            // 法術擴散傷害 (Advisor)
+            if (this.type === 'magic') {
+                const splashRange = 100;
+                Game.createEffect(this.tx, this.ty, 'hit'); // Extra visual
+                if (this.target.type !== 'base') {
+                    // 對周圍敵人造成 50% 傷害
+                    Game.units.forEach(u => {
+                        if (u.team !== this.team && !u.dead) {
+                            if (Math.hypot(u.x - this.tx, u.y - 30 - this.ty) < splashRange) {
+                                u.takeDamage(this.damage * 0.5, Game);
+                            }
+                        }
+                    });
+                }
+            }
+
             if (this.target.type === 'base') {
                 if (this.target.team === 'player') Game.gameState.baseHpPlayer -= this.damage;
                 else Game.gameState.baseHpEnemy -= this.damage;
@@ -929,9 +1018,12 @@ class Projectile {
     draw(ctx, camera) {
         const pos = camera.toScreen(this.x, this.y);
         const s = pos.scale;
+        
         ctx.fillStyle = this.team === 'player' ? '#3498db' : '#e74c3c';
+        if (this.type === 'magic') ctx.fillStyle = '#9b59b6'; // 紫色法球
+        
         ctx.beginPath();
-        ctx.arc(pos.x, pos.y, 6 * s, 0, Math.PI*2);
+        ctx.arc(pos.x, pos.y, (this.type === 'magic' ? 8 : 5) * s, 0, Math.PI*2);
         ctx.fill();
     }
 }
