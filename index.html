@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>三國策略攻防戰 (角色選擇版)</title>
+    <title>三國策略攻防戰 (V0128)</title>
     <style>
         :root {
             --primary-color: #f39c12; /* 三國金 */
@@ -31,7 +31,7 @@
             position: relative;
             width: 1200px;
             height: 800px;
-            background-color: #a9dfbf; 
+            background-color: #2c3e50; 
             box-shadow: 0 0 50px rgba(0,0,0,0.8);
             border-radius: 12px;
             overflow: hidden;
@@ -106,7 +106,16 @@
         }
 
         /* Screens */
-        #login-screen, #result-screen {
+        #login-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: url('https://raw.githubusercontent.com/btosichen/2026-Tower-Defense-Games/23e73bd815ab029e43fc9728641e0358131555c6/Gemini_Generated_Image_9bni789bni789bni.png') no-repeat center center;
+            background-size: cover;
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            color: white; z-index: 100;
+        }
+
+        #result-screen {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(44, 62, 80, 0.98);
             display: flex; flex-direction: column;
@@ -114,56 +123,29 @@
             color: white; z-index: 100;
         }
         
-        /* 角色選擇介面優化 */
         .panel-box {
-            background: #fff; padding: 40px; border-radius: 20px;
+            background: rgba(255, 255, 255, 0.95); 
+            padding: 40px; border-radius: 20px;
             text-align: center; color: #2c3e50;
             border: 6px solid var(--primary-color);
-            width: 600px; /* 加寬以容納角色選擇 */
-            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            width: 600px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8);
             max-width: 95%;
+            backdrop-filter: blur(5px);
         }
 
-        .char-selection {
-            display: flex;
-            justify-content: center;
-            gap: 30px;
-            margin: 20px 0;
-        }
-
+        .char-selection { display: flex; justify-content: center; gap: 30px; margin: 20px 0; }
         .char-card {
-            width: 150px;
-            padding: 15px;
-            border: 3px solid #ddd;
-            border-radius: 12px;
-            cursor: pointer;
-            transition: all 0.3s;
-            background: #f9f9f9;
+            width: 150px; padding: 15px; border: 3px solid #ddd; border-radius: 12px;
+            cursor: pointer; transition: all 0.3s; background: #fff;
         }
-
-        .char-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-        }
-
+        .char-card:hover { transform: translateY(-5px); box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
         .char-card.selected {
-            border-color: var(--secondary-color);
-            background: #fadbd8;
-            box-shadow: 0 0 15px var(--secondary-color);
-            transform: scale(1.05);
+            border-color: var(--secondary-color); background: #fadbd8;
+            box-shadow: 0 0 15px var(--secondary-color); transform: scale(1.05);
         }
-
-        .char-img {
-            width: 100%;
-            height: 120px;
-            object-fit: contain;
-            margin-bottom: 10px;
-        }
-
-        .char-desc {
-            font-size: 14px;
-            color: #555;
-        }
+        .char-img { width: 100%; height: 120px; object-fit: contain; margin-bottom: 10px; }
+        .char-desc { font-size: 14px; color: #555; }
 
         input {
             padding: 15px; font-size: 20px; width: 60%;
@@ -239,7 +221,6 @@
                 </div>
 
                 <div style="display:flex; align-items:center;">
-                    <!-- 顯示選擇的角色頭像 -->
                     <img id="avatar-display" src="" style="display:none;">
                     <span style="color:var(--player-color); margin-right:5px;">🛡️ 我城</span>
                     <div class="hp-bar-container">
@@ -278,11 +259,22 @@
  * 圖片資源
  */
 const ASSETS = {
-    // 角色選擇圖片
     chars: {
         1: "https://raw.githubusercontent.com/btosichen/2026-Tower-Defense-Games/73d914672748f372cbd42737a5025b071972627a/logo-1-0-0.png",
         2: "https://raw.githubusercontent.com/btosichen/2026-Tower-Defense-Games/73d914672748f372cbd42737a5025b071972627a/logo-2-0-0.png"
     },
+    backgrounds: [
+        "https://raw.githubusercontent.com/btosichen/2026-Tower-Defense-Games/d1541125592a5f3ca60a7ba19a3ddc42cce65421/bg-0.png",
+        "https://raw.githubusercontent.com/btosichen/2026-Tower-Defense-Games/d1541125592a5f3ca60a7ba19a3ddc42cce65421/bg-1.png",
+        "https://raw.githubusercontent.com/btosichen/2026-Tower-Defense-Games/d1541125592a5f3ca60a7ba19a3ddc42cce65421/bg-2.png",
+        "https://raw.githubusercontent.com/btosichen/2026-Tower-Defense-Games/d1541125592a5f3ca60a7ba19a3ddc42cce65421/bg-3.png",
+        "https://raw.githubusercontent.com/btosichen/2026-Tower-Defense-Games/d1541125592a5f3ca60a7ba19a3ddc42cce65421/bg-4.png",
+        "https://raw.githubusercontent.com/btosichen/2026-Tower-Defense-Games/d1541125592a5f3ca60a7ba19a3ddc42cce65421/bg-5.png",
+        "https://raw.githubusercontent.com/btosichen/2026-Tower-Defense-Games/d1541125592a5f3ca60a7ba19a3ddc42cce65421/bg-6.png",
+        "https://raw.githubusercontent.com/btosichen/2026-Tower-Defense-Games/d1541125592a5f3ca60a7ba19a3ddc42cce65421/bg-7.png",
+        "https://raw.githubusercontent.com/btosichen/2026-Tower-Defense-Games/d1541125592a5f3ca60a7ba19a3ddc42cce65421/bg-8.png",
+        "https://raw.githubusercontent.com/btosichen/2026-Tower-Defense-Games/d1541125592a5f3ca60a7ba19a3ddc42cce65421/bg-9.png"
+    ],
     player: {
         castle: "https://raw.githubusercontent.com/btosichen/2026-Tower-Defense-Games/ac4b7a1f6d922e4765e29eef26384cd26bd7afd8/logo-1-0%20(90%20x%2090%20%E5%83%8F%E7%B4%A0).png",
         sword: "https://raw.githubusercontent.com/btosichen/2026-Tower-Defense-Games/ac4b7a1f6d922e4765e29eef26384cd26bd7afd8/logo-1-1%20(50%20x%2050%20%E5%83%8F%E7%B4%A0).png",
@@ -311,7 +303,7 @@ const ASSETS = {
 const ImageLoader = {
     loadAll: function(callback) {
         let loaded = 0;
-        const total = 18; 
+        const total = 28; 
         const checkLoad = () => {
             loaded++;
             if (loaded >= total && callback) callback();
@@ -326,6 +318,11 @@ const ImageLoader = {
             img.onload = checkLoad; img.onerror = checkLoad;
             ASSETS.images[`e_${key}`] = img;
         }
+        ASSETS.backgrounds.forEach((url, index) => {
+            const img = new Image(); img.src = url;
+            img.onload = checkLoad; img.onerror = checkLoad;
+            ASSETS.images[`bg_${index}`] = img;
+        });
     }
 };
 
@@ -354,6 +351,38 @@ const AudioSys = {
         game_over: () => { if(AudioSys.ctx) [300, 250, 200].forEach((f, i) => setTimeout(() => AudioSys.playTone(f, 'sawtooth', 0.5, 0.1), i * 300)); }
     }
 };
+
+/**
+ * 安全配置系統 (Secure Config)
+ * 將 UNIT_TYPES 和 LEVELS 加密儲存，防止直接修改變數
+ */
+const SecureConfig = (function() {
+    // 簡單的 Base64 混淆字串
+    const _units = "eyJzd29yZCI6eyJuYW1lIjoi5YiA5YW1IiwiY29zdCI6NTAsImhwIjoxMjAsImF0ayI6MTUsInJhbmdlIjo0MCwic3BlZWQiOjIuNSwidHlwZSI6Im1lbGVlIiwiY2QiOjYwfSwiYm93Ijp7Im5hbWUiOiLlvJPlhbUiLCJjb3N0IjoxMjAsImhwIjo4MCwiYXRrIjoyNSwicmFuZ2UiOjI1MCwic3BlZWQiOjIuNSwidHlwZSI6InJhbmdlZCIsImNkIjo4MH0sInNwZWFyIjp7Im5hbWUiOiLmp43lhbUiLCJjb3N0IjoyMDAsImhwIjoxODAsImF0ayI6NDAsInJhbmdlIjo3MCwic3BlZWQiOjIuMCwidHlwZSI6Im1lbGVlIiwiY2QiOjEwMH0sImNhdmFscnkiOnsibmFtZSI6IumosV9WbSIsImNvc3QiOjI4MCwiaHAiOjIyMCwiYXRrIjo0NSwicmFuZ2UiOjQwLCJzcGVlZCI6NS4wLCJ0eXBlIjoibWVsZWUiLCJjZCI6MTIwfSwidmFuZ3VhcmQiOnsibmFtZSI6IuWJjea0iyIsImNvc3QiOjM1MCwiaHAiOjMwMCwiYXRrIjo1NSwicmFuZ2UiOjQwLCJzcGVlZCI6My41LCJ0eXBlIjoibWVsZWUiLCJjZCI6MTUwfSwidmljZSI6eyJuYW1lIjoi5Ymv5bCH6LuNIiwiY29zdCI6NTAwLCJocCI6NjAwLCJhdGsiOjcwLCJyYW5nZSI6NTAsInNwZWVkIjoxLjUsInR5cGUiOiJtZWxlZSIsImNkIjozMDB9LCJhZHZpc29yIjp7Im5hbWUiOiLlnIvluIIiLCJjb3N0Ijo4MDAsImhwIjoyMDAsImF0ayI6MTAwLCJyYW5nZSI6MzAwLCJzcGVlZCI6MS41LCJ0eXBlIjoibWFnaWMiLCJjZCI6NDAwfSwiZ2VuZXJhbCI6eyJuYW1lIjoi5aSn5bCH6LuNIiwiY29zdCI6MTUwMCwiaHAiOjIwMDAsImF0ayI6MjAwLCJyYW5nZSI6NjAsInNwZWVkIjoxLjIsInR5cGUiOiJtZWxlZSIsImNkIjo2MDAsImxpbWl0IjoxfX0=";
+    
+    // 關卡設定較複雜，這裡使用動態生成並凍結
+    const _levels = Array.from({length: 10}, (_, i) => ({
+        enemySpawnRate: Math.max(60, 180 - i * 12),
+        goldRate: 1 + i * 0.5,
+        enemyTypes: i < 1 ? ['sword', 'sword', 'spear'] :
+                    i < 3 ? ['sword', 'bow', 'spear', 'cavalry'] :
+                    i < 6 ? ['spear', 'bow', 'cavalry', 'vanguard', 'vice'] :
+                    i < 8 ? ['vanguard', 'vice', 'advisor'] :
+                            ['vice', 'advisor', 'general'],
+        statsMultiplier: 1 + i,
+        speedMultiplier: 1 + (i * 0.1)
+    }));
+
+    // 解碼並凍結物件，防止修改
+    const unitData = JSON.parse(atob(_units));
+    Object.freeze(unitData);
+    Object.freeze(_levels);
+
+    return {
+        getUnitTypes: () => unitData,
+        getLevels: () => _levels
+    };
+})();
 
 class Camera {
     constructor(width, height) {
@@ -387,18 +416,7 @@ class Camera {
 const CONFIG = {
     gridSize: 80, 
     width: 15, height: 10,
-    gasUrl: 'https://script.google.com/macros/s/AKfycbyLZasBwkRQ5zg5CfZlgdzXjUwgb8kDtkXp2cbul02usKRDqn79pbML-O8K285U3Atz/exec'
-};
-
-const UNIT_TYPES = {
-    sword:    { name: '刀兵',   cost: 50,  hp: 120, atk: 15, range: 40,  speed: 2.5, type: 'melee', cd: 60 },
-    bow:      { name: '弓兵',   cost: 120, hp: 80,  atk: 25, range: 250, speed: 2.5, type: 'ranged', cd: 80 },
-    spear:    { name: '槍兵',   cost: 200, hp: 180, atk: 40, range: 70,  speed: 2.0, type: 'melee', cd: 100 },
-    cavalry:  { name: '騎兵',   cost: 280, hp: 220, atk: 45, range: 40,  speed: 5.0, type: 'melee', cd: 120 },
-    vanguard: { name: '前鋒',   cost: 350, hp: 300, atk: 55, range: 40,  speed: 3.5, type: 'melee', cd: 150 },
-    vice:     { name: '副將軍', cost: 500, hp: 600, atk: 70, range: 50,  speed: 1.5, type: 'melee', cd: 300 },
-    advisor:  { name: '國師',   cost: 800, hp: 200, atk: 100, range: 300, speed: 1.5, type: 'magic', cd: 400 },
-    general:  { name: '大將軍', cost: 1500, hp: 2000,atk: 200, range: 60, speed: 1.2, type: 'melee', cd: 600, limit: 1 }
+    gasUrl: 'https://script.google.com/macros/s/AKfycbwqZFv8Jzk4A1ERYbzljRudebPBTlBn4OcSsFWfWBGLTIKGSMDEd3focinsGovte4c9/exec'
 };
 
 const MAPS = [
@@ -414,32 +432,35 @@ const MAPS = [
     [{x:0,y:0}, {x:0,y:9}, {x:3,y:9}, {x:3,y:2}, {x:6,y:2}, {x:6,y:7}, {x:9,y:7}, {x:9,y:1}, {x:12,y:1}, {x:12,y:8}, {x:14,y:8}]
 ];
 
-const LEVELS = Array.from({length: 10}, (_, i) => ({
-    enemySpawnRate: Math.max(60, 180 - i * 12),
-    goldRate: 1 + i * 0.5,
-    enemyTypes: i < 1 ? ['sword', 'sword', 'spear'] :
-                i < 3 ? ['sword', 'bow', 'spear', 'cavalry'] :
-                i < 6 ? ['spear', 'bow', 'cavalry', 'vanguard', 'vice'] :
-                i < 8 ? ['vanguard', 'vice', 'advisor'] :
-                        ['vice', 'advisor', 'general'],
-    statsMultiplier: 1 + i,
-    speedMultiplier: 1 + (i * 0.1)
-}));
-
+/**
+ * 遊戲引擎 (安全增強版)
+ * 使用私有變數 (#) 防止直接存取
+ */
 class GameEngine {
+    // 私有狀態變數，無法從 Console 直接修改
+    #gold = 0;
+    #score = 0;
+    #levelScores = new Array(10).fill(0);
+    #baseHpPlayer = 1000;
+    #baseHpEnemy = 1000;
+    #playerUnitCounts = {};
+    
+    // 防作弊校驗碼
+    #checksum = 0;
+
     constructor() {
         this.canvas = document.getElementById('gameCanvas');
         this.ctx = this.canvas.getContext('2d');
-        this.player = { name: '', id: '', score: 0, levelScores: new Array(10).fill(0) }; // 新增分數陣列
+        this.player = { name: '', id: '' }; // 公開資訊無妨
         this.camera = new Camera(1200, 800);
         this.selectedAvatar = null;
         
-        this.gameState = {
-            level: 0, gold: 0,
-            baseHpPlayer: 1000, baseHpEnemy: 1000, maxBaseHp: 1000,
-            isGameOver: false, enemySpawnTimer: 0, isLevelTransitioning: false,
-            playerUnitCounts: {} 
-        };
+        // 公開狀態 (只讀或不重要)
+        this.level = 0;
+        this.isGameOver = false;
+        this.enemySpawnTimer = 0;
+        this.isLevelTransitioning = false;
+        this.maxBaseHp = 1000;
 
         this.units = []; this.projectiles = []; this.particles = []; this.pathPixels = [];
         this.lastTime = 0;
@@ -461,16 +482,63 @@ class GameEngine {
             if (e.key === 'e' || e.key === 'E') this.camera.rotate(0.1);
             if (e.key === 'r' || e.key === 'R') this.camera.reset();
         });
+        
+        this.#updateChecksum(); // 初始化校驗碼
     }
+
+    // 安全存取器
+    getGold() { return this.#gold; }
+    getScore() { return this.#score; }
+    getHpPlayer() { return this.#baseHpPlayer; }
+    getHpEnemy() { return this.#baseHpEnemy; }
+    getUnitCount(key) { return this.#playerUnitCounts[key] || 0; }
+
+    // 更新校驗碼 (金錢 + 分數 * 1.5 + 42)
+    #updateChecksum() {
+        this.#checksum = this.#gold + (this.#score * 1.5) + 42;
+    }
+
+    // 驗證校驗碼 (防止記憶體修改)
+    #verifyIntegrity() {
+        if (this.#checksum !== (this.#gold + (this.#score * 1.5) + 42)) {
+            alert("偵測到異常數據！遊戲終止。");
+            this.isGameOver = true;
+            return false;
+        }
+        return true;
+    }
+
+    addGold(amount) {
+        if (!this.#verifyIntegrity()) return;
+        this.#gold += amount;
+        this.#updateChecksum();
+    }
+
+    addScore(amount) {
+        if (!this.#verifyIntegrity()) return;
+        this.#score += amount;
+        this.#updateChecksum();
+    }
+
+    modifyHp(target, amount) {
+        if (target === 'player') this.#baseHpPlayer += amount;
+        else this.#baseHpEnemy += amount;
+    }
+
+    resetUnitCounts() { this.#playerUnitCounts = {}; }
+    
+    incrementUnitCount(key) { this.#playerUnitCounts[key] = (this.#playerUnitCounts[key] || 0) + 1; }
+    decrementUnitCount(key) { if(this.#playerUnitCounts[key] > 0) this.#playerUnitCounts[key]--; }
 
     createUnitButtons() {
         const bar = document.getElementById('bottom-bar');
         bar.innerHTML = '';
-        const keys = Object.keys(UNIT_TYPES);
+        const types = SecureConfig.getUnitTypes();
+        const keys = Object.keys(types);
         this.cooldowns = {}; 
         
         keys.forEach((key, index) => {
-            const u = UNIT_TYPES[key];
+            const u = types[key];
             const div = document.createElement('div');
             div.className = 'unit-btn';
             div.id = `btn-${key}`;
@@ -487,7 +555,6 @@ class GameEngine {
             `;
             bar.appendChild(div);
             this.cooldowns[key] = 0;
-            this.gameState.playerUnitCounts[key] = 0;
             if (u.limit) div.querySelector('.limit-badge').style.display = 'block';
         });
         document.addEventListener('keydown', (e) => {
@@ -510,7 +577,6 @@ class GameEngine {
         this.player.name = name; this.player.id = 'ID_' + Date.now(); this.player.startTime = Date.now();
         AudioSys.init();
         
-        // 設定遊戲內的頭像
         const avatarImg = document.getElementById('avatar-display');
         avatarImg.src = ASSETS.chars[this.selectedAvatar];
         avatarImg.style.display = 'block';
@@ -522,27 +588,26 @@ class GameEngine {
     }
 
     startLevel(lvl) {
-        this.gameState.isLevelTransitioning = false;
+        this.isLevelTransitioning = false;
         
-        // 記錄上一關的分數 (如果是第一關之後)
+        // 記錄分數
         if (lvl > 0) {
-            // 計算本關得分：總分 - 前幾關的總分
             let prevTotal = 0;
-            for(let i=0; i<lvl; i++) prevTotal += this.player.levelScores[i];
-            this.player.levelScores[lvl-1] = this.player.score - prevTotal;
+            for(let i=0; i<lvl; i++) prevTotal += this.#levelScores[i];
+            this.#levelScores[lvl-1] = this.#score - prevTotal;
         }
 
-        if (lvl >= LEVELS.length) { 
-            // 記錄最後一關分數
+        const levels = SecureConfig.getLevels();
+        if (lvl >= levels.length) { 
             let prevTotal = 0;
-            for(let i=0; i<9; i++) prevTotal += this.player.levelScores[i];
-            this.player.levelScores[9] = this.player.score - prevTotal;
+            for(let i=0; i<9; i++) prevTotal += this.#levelScores[i];
+            this.#levelScores[9] = this.#score - prevTotal;
 
             AudioSys.sfx.win_level(); 
             return this.endGame(true, "天下統一！三國歸一！"); 
         }
         
-        this.gameState.level = lvl;
+        this.level = lvl;
         this.camera.reset(); 
         
         const mapPoints = MAPS[lvl % MAPS.length];
@@ -551,20 +616,22 @@ class GameEngine {
             y: p.y * CONFIG.gridSize + CONFIG.gridSize/2
         }));
 
-        const lvlConfig = LEVELS[lvl];
-        this.gameState.maxBaseHp = 1000 + (lvl * 1000); 
-        this.gameState.baseHpEnemy = this.gameState.maxBaseHp * lvlConfig.statsMultiplier; 
-        this.gameState.baseHpPlayer = 1000 + (lvl * 200);
+        const lvlConfig = levels[lvl];
+        this.maxBaseHp = 1000 + (lvl * 1000); 
+        this.#baseHpEnemy = this.maxBaseHp * lvlConfig.statsMultiplier; 
+        this.#baseHpPlayer = 1000 + (lvl * 200);
         
-        if (lvl === 0) this.gameState.gold = 1000; 
-        else {
+        if (lvl === 0) {
+            this.#gold = 1000;
+            this.#updateChecksum();
+        } else {
             const bonus = 1000 + (lvl * 500);
-            this.gameState.gold += bonus;
+            this.addGold(bonus);
             this.showMessage(`獲得凱旋獎金 $${bonus}！`, false);
         }
 
-        this.units = []; this.projectiles = []; this.particles = []; this.gameState.enemySpawnTimer = 0;
-        for(let k in this.gameState.playerUnitCounts) this.gameState.playerUnitCounts[k] = 0;
+        this.units = []; this.projectiles = []; this.particles = []; this.enemySpawnTimer = 0;
+        this.resetUnitCounts();
         
         this.updateUI();
         document.getElementById('enemy-stats-hint').innerText = `(強度: ${Math.round(lvlConfig.statsMultiplier * 100)}%)`;
@@ -572,17 +639,19 @@ class GameEngine {
     }
 
     spawnPlayerUnit(typeKey) {
-        if (this.gameState.isLevelTransitioning || this.gameState.isGameOver) return;
-        const data = UNIT_TYPES[typeKey];
-        if (this.gameState.gold < data.cost) return this.showMessage("軍費不足", true);
+        if (this.isLevelTransitioning || this.isGameOver) return;
+        const types = SecureConfig.getUnitTypes();
+        const data = types[typeKey];
+        
+        if (this.#gold < data.cost) return this.showMessage("軍費不足", true);
         if (this.cooldowns[typeKey] > 0) return;
-        if (data.limit && (this.gameState.playerUnitCounts[typeKey] || 0) >= data.limit) {
+        if (data.limit && this.getUnitCount(typeKey) >= data.limit) {
             return this.showMessage(`戰場只能有一位${data.name}！`, true);
         }
 
-        this.gameState.gold -= data.cost; 
+        this.addGold(-data.cost); // 扣款
         this.cooldowns[typeKey] = data.cd; 
-        this.gameState.playerUnitCounts[typeKey] = (this.gameState.playerUnitCounts[typeKey] || 0) + 1;
+        this.incrementUnitCount(typeKey);
         
         AudioSys.sfx.spawn();
         const startNode = this.pathPixels[this.pathPixels.length - 1];
@@ -591,8 +660,9 @@ class GameEngine {
     }
 
     spawnEnemyUnit() {
-        if (this.gameState.isLevelTransitioning) return;
-        const lvlData = LEVELS[this.gameState.level];
+        if (this.isLevelTransitioning) return;
+        const levels = SecureConfig.getLevels();
+        const lvlData = levels[this.level];
         const types = lvlData.enemyTypes;
         const randType = types[Math.floor(Math.random() * types.length)];
         const startNode = this.pathPixels[0];
@@ -600,7 +670,7 @@ class GameEngine {
     }
 
     gameLoop(timestamp) {
-        if (this.gameState.isGameOver) return;
+        if (this.isGameOver) return;
         if (!this.lastTime) this.lastTime = timestamp;
         const dt = timestamp - this.lastTime;
         if (dt > 16) { this.update(); this.draw(); this.lastTime = timestamp; }
@@ -608,30 +678,36 @@ class GameEngine {
     }
 
     update() {
-        const lvlData = LEVELS[this.gameState.level];
-        if (!this.gameState.isLevelTransitioning) {
-            this.gameState.gold += lvlData.goldRate * 0.5; 
-            if (this.gameState.gold > 50000) this.gameState.gold = 50000;
+        const levels = SecureConfig.getLevels();
+        const lvlData = levels[this.level];
+        
+        if (!this.isLevelTransitioning) {
+            this.addGold(lvlData.goldRate * 0.5); 
+            if (this.#gold > 50000) {
+                this.#gold = 50000;
+                this.#updateChecksum();
+            }
         }
 
-        this.gameState.enemySpawnTimer++;
-        if (this.gameState.enemySpawnTimer > lvlData.enemySpawnRate) {
+        this.enemySpawnTimer++;
+        if (this.enemySpawnTimer > lvlData.enemySpawnRate) {
             this.spawnEnemyUnit();
-            this.gameState.enemySpawnTimer = 0;
+            this.enemySpawnTimer = 0;
         }
 
+        const unitTypes = SecureConfig.getUnitTypes();
         for (let key in this.cooldowns) {
             if (this.cooldowns[key] > 0) this.cooldowns[key]--;
             const btn = document.getElementById(`btn-${key}`);
             if(btn) {
                 const overlay = btn.querySelector('.cooldown-overlay');
-                const percent = (this.cooldowns[key] / UNIT_TYPES[key].cd) * 100;
+                const percent = (this.cooldowns[key] / unitTypes[key].cd) * 100;
                 overlay.style.height = `${percent}%`;
                 
-                const data = UNIT_TYPES[key];
-                const isLimited = data.limit && (this.gameState.playerUnitCounts[key] || 0) >= data.limit;
+                const data = unitTypes[key];
+                const isLimited = data.limit && this.getUnitCount(key) >= data.limit;
                 
-                if((percent <= 0 && this.gameState.gold < data.cost) || isLimited) {
+                if((percent <= 0 && this.#gold < data.cost) || isLimited) {
                     btn.classList.add('disabled');
                 } else {
                     btn.classList.remove('disabled');
@@ -644,13 +720,12 @@ class GameEngine {
             const u = this.units[i];
             u.update(this);
             if (u.dead) {
-                if (u.team === 'player' && this.gameState.playerUnitCounts[u.typeKey] > 0) {
-                    this.gameState.playerUnitCounts[u.typeKey]--;
-                }
+                if (u.team === 'player') this.decrementUnitCount(u.typeKey);
                 this.units.splice(i, 1);
                 if (u.team === 'enemy') {
-                    this.gameState.gold += UNIT_TYPES[u.typeKey].cost * 0.3 * lvlData.statsMultiplier;
-                    this.player.score += 10 * (this.gameState.level + 1);
+                    const bounty = unitTypes[u.typeKey].cost * 0.3 * lvlData.statsMultiplier;
+                    this.addGold(bounty);
+                    this.addScore(10 * (this.level + 1));
                 }
             }
         }
@@ -665,41 +740,46 @@ class GameEngine {
         this.particles.forEach(p => p.update());
         this.updateUI();
 
-        if (this.gameState.baseHpPlayer <= 0 && !this.gameState.isGameOver) {
+        if (this.#baseHpPlayer <= 0 && !this.isGameOver) {
             AudioSys.sfx.game_over(); this.endGame(false, "城池陷落，勝敗乃兵家常事...");
         }
-        if (this.gameState.baseHpEnemy <= 0 && !this.gameState.isLevelTransitioning) {
-            this.gameState.baseHpEnemy = 0; this.gameState.isLevelTransitioning = true;
+        if (this.#baseHpEnemy <= 0 && !this.isLevelTransitioning) {
+            this.#baseHpEnemy = 0; this.isLevelTransitioning = true;
             AudioSys.sfx.win_level(); this.showMessage("敵營攻破！全軍整備...", false);
             this.units.forEach(u => u.state = 'move');
-            setTimeout(() => { this.startLevel(this.gameState.level + 1); }, 3000);
+            setTimeout(() => { this.startLevel(this.level + 1); }, 3000);
         }
     }
 
     draw() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        this.drawGrid(); this.drawPath();
+        this.drawBackground(); 
+        this.drawPath();
         const start = this.pathPixels[0];
         const end = this.pathPixels[this.pathPixels.length-1];
-        this.drawCastle(start.x, start.y, 'enemy', `敵營 Lv.${this.gameState.level+1}`);
+        this.drawCastle(start.x, start.y, 'enemy', `敵營 Lv.${this.level+1}`);
         this.drawCastle(end.x, end.y, 'player', "我城");
         this.units.forEach(u => u.draw(this.ctx, this.camera));
         this.projectiles.forEach(p => p.draw(this.ctx, this.camera));
         this.particles.forEach(p => p.draw(this.ctx, this.camera));
     }
 
-    drawGrid() {
-        const p1 = this.camera.toScreen(0, 0); const p2 = this.camera.toScreen(1200, 0);
-        const p3 = this.camera.toScreen(1200, 800); const p4 = this.camera.toScreen(0, 800);
-        this.ctx.strokeStyle = "rgba(0,0,0,0.1)"; this.ctx.lineWidth = 2;
-        this.ctx.beginPath(); this.ctx.moveTo(p1.x, p1.y); this.ctx.lineTo(p2.x, p2.y);
-        this.ctx.lineTo(p3.x, p3.y); this.ctx.lineTo(p4.x, p4.y);
-        this.ctx.closePath(); this.ctx.stroke(); this.ctx.fillStyle = "rgba(169, 223, 191, 0.3)"; this.ctx.fill();
+    drawBackground() {
+        this.ctx.save();
+        this.ctx.translate(this.camera.width / 2, this.camera.height / 2);
+        this.ctx.scale(this.camera.zoom, this.camera.zoom);
+        this.ctx.rotate(this.camera.angle);
+        this.ctx.translate(-this.camera.x, -this.camera.y);
+        const bgImg = ASSETS.images[`bg_${this.level}`];
+        if (bgImg) this.ctx.drawImage(bgImg, 0, 0, 1200, 800);
+        else { this.ctx.fillStyle = "#a9dfbf"; this.ctx.fillRect(0, 0, 1200, 800); }
+        this.ctx.strokeStyle = "rgba(0,0,0,0.5)"; this.ctx.lineWidth = 5; this.ctx.strokeRect(0, 0, 1200, 800);
+        this.ctx.restore();
     }
 
     drawPath() {
         this.ctx.lineCap = 'round'; this.ctx.lineJoin = 'round';
-        this.ctx.lineWidth = 70 * this.camera.zoom; this.ctx.strokeStyle = '#e6d0ce'; 
+        this.ctx.lineWidth = 70 * this.camera.zoom; this.ctx.strokeStyle = 'rgba(230, 208, 206, 0.7)'; 
         this.ctx.beginPath();
         if (this.pathPixels.length > 0) {
             const start = this.camera.toScreen(this.pathPixels[0].x, this.pathPixels[0].y);
@@ -732,12 +812,15 @@ class GameEngine {
     }
 
     updateUI() {
-        document.getElementById('gold').innerText = Math.floor(this.gameState.gold);
-        document.getElementById('wave-info').innerText = `第 ${this.gameState.level + 1} 關`;
-        const pPct = Math.max(0, (this.gameState.baseHpPlayer / (1000 + this.gameState.level * 200)) * 100);
+        // 使用 getter 存取私有變數
+        document.getElementById('gold').innerText = Math.floor(this.#gold);
+        document.getElementById('wave-info').innerText = `第 ${this.level + 1} 關`;
+        const pPct = Math.max(0, (this.#baseHpPlayer / (1000 + this.level * 200)) * 100);
         document.getElementById('player-hp-bar').style.width = `${pPct}%`;
-        const enemyMaxHp = (1000 + (this.gameState.level * 1000)) * LEVELS[this.gameState.level].statsMultiplier;
-        const ePct = Math.max(0, (this.gameState.baseHpEnemy / enemyMaxHp) * 100);
+        
+        const levels = SecureConfig.getLevels();
+        const enemyMaxHp = (1000 + (this.level * 1000)) * levels[this.level].statsMultiplier;
+        const ePct = Math.max(0, (this.#baseHpEnemy / enemyMaxHp) * 100);
         document.getElementById('enemy-hp-bar').style.width = `${ePct}%`;
     }
 
@@ -755,13 +838,13 @@ class GameEngine {
     }
 
     endGame(isWin, reason) {
-        this.gameState.isGameOver = true;
+        this.isGameOver = true;
         document.getElementById('result-screen').style.display = 'flex';
         document.getElementById('end-title').innerText = isWin ? "🏆 大獲全勝" : "💀 戰敗";
         document.getElementById('end-title').style.color = isWin ? "gold" : "#e74c3c";
         document.getElementById('end-reason').innerText = reason;
         const duration = Math.floor((Date.now() - this.player.startTime)/1000);
-        document.getElementById('final-score').innerText = this.player.score;
+        document.getElementById('final-score').innerText = this.#score;
         document.getElementById('final-time').innerText = duration + "s";
         this.sendToGas(duration);
     }
@@ -771,8 +854,8 @@ class GameEngine {
             const data = { 
                 name: this.player.name, 
                 id: this.player.id, 
-                totalScore: this.player.score, 
-                levelScores: this.player.levelScores, // 傳送各關分數陣列
+                totalScore: this.#score, 
+                levelScores: this.#levelScores, 
                 duration: duration, 
                 date: new Date().toISOString() 
             };
@@ -784,7 +867,10 @@ class GameEngine {
 class Unit {
     constructor(x, y, team, typeKey, pathIdx, statsMult = 1, speedMult = 1) {
         this.x = x; this.y = y; this.team = team; this.typeKey = typeKey;
-        const data = UNIT_TYPES[typeKey];
+        // 從安全配置獲取數據
+        const types = SecureConfig.getUnitTypes();
+        const data = types[typeKey];
+        
         this.name = data.name; this.maxHp = data.hp * statsMult; this.hp = this.maxHp;
         this.atk = data.atk * statsMult; this.range = data.range; this.speed = data.speed * speedMult;
         this.attackType = data.type; this.cd = data.cd;
@@ -831,8 +917,7 @@ class Unit {
             game.createEffect(target.x || this.x, target.y || this.y, 'hit');
             AudioSys.sfx.attack_melee();
             if (target.type === 'base') {
-                if (target.team === 'player') game.gameState.baseHpPlayer -= this.atk;
-                else game.gameState.baseHpEnemy -= this.atk;
+                game.modifyHp(target.team, -this.atk); // 使用修改器
                 game.createEffect(this.x, this.y, 'hit'); 
             } else { target.takeDamage(this.atk, game); }
         }
@@ -895,8 +980,7 @@ class Projectile {
                 }
             }
             if (this.target.type === 'base') {
-                if (this.target.team === 'player') Game.gameState.baseHpPlayer -= this.damage;
-                else Game.gameState.baseHpEnemy -= this.damage;
+                Game.modifyHp(this.target.team, -this.damage); // 使用修改器
             } else if (this.target.takeDamage) { this.target.takeDamage(this.damage, Game); }
         } else { this.x += (dx/dist) * this.speed; this.y += (dy/dist) * this.speed; }
     }
