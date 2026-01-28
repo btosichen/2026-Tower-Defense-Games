@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>三國策略攻防戰 (v0128.3)</title>
+    <title>三國策略攻防戰 (v0128.4)</title>
     <style>
         :root {
             --primary-color: #f39c12; 
@@ -442,6 +442,8 @@ const AudioSys = {
         attack_range: () => AudioSys.playTone(800, 'sine', 0.1, 0.05),
         hit: () => AudioSys.playTone(150, 'square', 0.1, 0.05),
         spell: () => { if(AudioSys.ctx) [600, 500, 400].forEach((f, i) => setTimeout(() => AudioSys.playTone(f, 'sine', 0.3, 0.1), i * 100)); },
+        heal: () => { if(AudioSys.ctx) [400, 600, 800].forEach((f, i) => setTimeout(() => AudioSys.playTone(f, 'sine', 0.3, 0.1), i * 150)); },
+        inspire: () => { if(AudioSys.ctx) [300, 400, 500, 600].forEach((f, i) => setTimeout(() => AudioSys.playTone(f, 'triangle', 0.4, 0.1), i * 80)); },
         win_level: () => { if(AudioSys.ctx) [440, 554, 659].forEach((f, i) => setTimeout(() => AudioSys.playTone(f, 'square', 0.4, 0.1), i * 100)); },
         game_over: () => { if(AudioSys.ctx) [300, 250, 200].forEach((f, i) => setTimeout(() => AudioSys.playTone(f, 'sawtooth', 0.5, 0.1), i * 300)); }
     }
@@ -495,7 +497,6 @@ class GameEngine {
         this.enemySpawnTimer = 0; this.isLevelTransitioning = false;
         this.maxBaseHp = 1000;
 
-        // 城堡防禦數值
         this.castleStats = {
             player: { range: 300, damage: 50, cooldown: 60, timer: 0 },
             enemy: { range: 300, damage: 50, cooldown: 60, timer: 0 }
@@ -647,7 +648,6 @@ class GameEngine {
         this.#baseHpEnemy = this.maxBaseHp * lvlConfig.statsMultiplier; 
         this.#baseHpPlayer = 1000 + (lvl * 200);
         
-        // 升級城堡攻擊力
         this.castleStats.player.damage = 50 * (lvl + 1);
         this.castleStats.enemy.damage = 50 * (lvl + 1);
         
@@ -666,7 +666,6 @@ class GameEngine {
         this.updateUI();
         document.getElementById('enemy-stats-hint').innerText = `(強度: ${Math.round(lvlConfig.statsMultiplier * 100)}%)`;
         
-        // 城堡升級特效
         setTimeout(() => { 
             this.createFloatingText(this.pathPixels[0].x, this.pathPixels[0].y, "Lv.UP!");
             this.createFloatingText(this.pathPixels[this.pathPixels.length-1].x, this.pathPixels[this.pathPixels.length-1].y, "Lv.UP!");
@@ -795,7 +794,6 @@ class GameEngine {
             }
         }
 
-        // 城堡攻擊邏輯
         this.updateCastleDefense();
 
         for (let i = this.projectiles.length - 1; i >= 0; i--) {
@@ -819,16 +817,11 @@ class GameEngine {
         }
     }
 
-    // 城堡防禦邏輯
     updateCastleDefense() {
-        // Player Castle
         if (this.castleStats.player.timer > 0) this.castleStats.player.timer--;
         else {
-            // Find enemy near player castle
-            // Player castle pos depends on faction
             const pBaseIdx = (this.playerFaction === 1) ? this.pathPixels.length - 1 : 0;
             const pBase = this.pathPixels[pBaseIdx];
-            
             for (let u of this.units) {
                 if (u.team === 'enemy' && !u.dead) {
                     if (Math.hypot(u.x - pBase.x, u.y - pBase.y) <= this.castleStats.player.range) {
@@ -841,12 +834,10 @@ class GameEngine {
             }
         }
 
-        // Enemy Castle
         if (this.castleStats.enemy.timer > 0) this.castleStats.enemy.timer--;
         else {
             const eBaseIdx = (this.playerFaction === 1) ? 0 : this.pathPixels.length - 1;
             const eBase = this.pathPixels[eBaseIdx];
-            
             for (let u of this.units) {
                 if (u.team === 'player' && !u.dead) {
                     if (Math.hypot(u.x - eBase.x, u.y - eBase.y) <= this.castleStats.enemy.range) {
@@ -912,10 +903,7 @@ class GameEngine {
     drawCastle(wx, wy, type, label, hp) {
         const pos = this.camera.toScreen(wx, wy); const s = pos.scale;
         
-        // 戰敗變灰
-        if (hp <= 0) {
-            this.ctx.filter = 'grayscale(100%)';
-        }
+        if (hp <= 0) this.ctx.filter = 'grayscale(100%)';
 
         this.ctx.fillStyle = "rgba(0,0,0,0.3)";
         this.ctx.beginPath(); this.ctx.ellipse(pos.x, pos.y, 40 * s, 20 * s, 0, 0, Math.PI * 2); this.ctx.fill();
@@ -931,9 +919,7 @@ class GameEngine {
             this.ctx.drawImage(img, pos.x - size/2, pos.y - size, size, size);
         }
         
-        // Reset filter
         this.ctx.filter = 'none';
-
         this.drawText(pos.x, pos.y - 110 * s, label, `${20 * s}px Arial`, "#fff");
     }
 
@@ -945,10 +931,7 @@ class GameEngine {
 
     createFloatingText(x, y, text) {
         const p = new Particle(x, y, 'gold');
-        p.isText = true;
-        p.text = text;
-        p.life = 2.0;
-        p.vy = -2; // Float up
+        p.isText = true; p.text = text; p.life = 2.0; p.vy = -2; 
         this.particles.push(p);
     }
 
@@ -962,7 +945,6 @@ class GameEngine {
         const ePct = Math.max(0, (this.#baseHpEnemy / enemyMaxHp) * 100);
         document.getElementById('enemy-hp-bar').style.width = `${ePct}%`;
         
-        // 更新升級按鈕
         const nextCost = 500 * Math.pow(2, this.playerLevel - 1);
         document.getElementById('army-lvl').innerText = this.playerLevel;
         document.getElementById('upgrade-cost').innerText = '$' + nextCost;
@@ -980,7 +962,14 @@ class GameEngine {
 
     createEffect(x, y, type) {
         let color = 'white'; if (type === 'hit') color = 'orange'; if (type === 'blood') color = 'red';
-        for(let i=0; i<6; i++) this.particles.push(new Particle(x, y, color));
+        if (type === 'heal') color = '#2ecc71'; if (type === 'buff') color = '#f1c40f';
+        
+        for(let i=0; i<6; i++) {
+            const p = new Particle(x, y, color);
+            if(type === 'heal') { p.vy = -3; p.gravity = 0; } // Float up
+            if(type === 'buff') { p.vx = (Math.random()-0.5)*2; p.vy = -4; p.gravity = 0.1; }
+            this.particles.push(p);
+        }
     }
 
     endGame(isWin, reason) {
@@ -1019,14 +1008,42 @@ class Unit {
         
         this.name = data.name; this.maxHp = data.hp * statsMult; this.hp = this.maxHp;
         this.atk = data.atk * statsMult; this.range = data.range; this.speed = data.speed * speedMult;
+        this.baseSpeed = this.speed;
         this.attackType = data.type; this.cd = data.cd;
         this.pathIndex = pathIdx; this.state = 'move'; this.attackCooldown = 0; this.dead = false;
         this.bounce = 0;
+        this.buffTimer = 0;
         this.imgKey = `f${faction}_${typeKey}`;
     }
+    
     update(game) {
         if (this.dead) return;
+        
+        // Buff Logic
+        if(this.buffTimer > 0) {
+            this.buffTimer--;
+            if(this.buffTimer <= 0) this.speed = this.baseSpeed;
+        }
+
         if (this.attackCooldown > 0) this.attackCooldown--;
+        
+        // Advisor Logic
+        if (this.typeKey === 'advisor' && this.attackCooldown <= 0) {
+            // 1. Heal
+            const healTarget = this.findHealTarget(game);
+            if (healTarget) {
+                this.castHeal(healTarget, game);
+                this.attackCooldown = 120; // Slower cast
+                return;
+            }
+            // 2. Inspire (Random chance if allies nearby)
+            if (Math.random() < 0.02) {
+                this.castInspire(game);
+                this.attackCooldown = 180;
+                return;
+            }
+        }
+
         let target = this.findTarget(game);
         if (target) {
             this.state = 'attack';
@@ -1036,6 +1053,64 @@ class Unit {
         }
         if (this.state === 'move') this.bounce = Math.abs(Math.sin(Date.now() / 150)) * 5; else this.bounce = 0;
     }
+    
+    findHealTarget(game) {
+        let bestTarget = null;
+        let minHpPct = 1.0;
+        const range = 250;
+        
+        for (let u of game.units) {
+            if (u.team === this.team && u !== this && !u.dead) {
+                const dist = Math.hypot(u.x - this.x, u.y - this.y);
+                if (dist <= range) {
+                    const pct = u.hp / u.maxHp;
+                    if (pct < 0.8 && pct < minHpPct) { // Only heal if < 80%
+                        minHpPct = pct;
+                        bestTarget = u;
+                    }
+                }
+            }
+        }
+        return bestTarget;
+    }
+    
+    castHeal(target, game) {
+        const amount = 50 + (game.playerLevel * 10);
+        target.hp = Math.min(target.hp + amount, target.maxHp);
+        game.createEffect(target.x, target.y - 50, 'heal');
+        AudioSys.sfx.heal();
+        // Visual line
+        game.particles.push({
+            draw: (ctx, cam) => {
+                const p1 = cam.toScreen(this.x, this.y-50);
+                const p2 = cam.toScreen(target.x, target.y-50);
+                ctx.strokeStyle = '#2ecc71';
+                ctx.lineWidth = 2 * p1.scale;
+                ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+            },
+            update: () => {}, life: 0.1
+        });
+    }
+    
+    castInspire(game) {
+        const range = 200;
+        let count = 0;
+        for (let u of game.units) {
+            if (u.team === this.team && u !== this && !u.dead) {
+                if (Math.hypot(u.x - this.x, u.y - this.y) <= range) {
+                    u.speed = u.baseSpeed * 1.5;
+                    u.buffTimer = 180; // 3 seconds
+                    game.createEffect(u.x, u.y - 50, 'buff');
+                    count++;
+                }
+            }
+        }
+        if(count > 0) {
+            game.createEffect(this.x, this.y - 50, 'buff');
+            AudioSys.sfx.inspire();
+        }
+    }
+
     findTarget(game) {
         for (let u of game.units) {
             if (u.team !== this.team && !u.dead) {
@@ -1060,7 +1135,6 @@ class Unit {
     }
     attack(target, game) {
         if (this.attackType === 'ranged' || this.attackType === 'magic') {
-            // Projectile y offset adjusted for bigger units
             game.projectiles.push(new Projectile(this.x, this.y - 60, target, this.atk, this.team, this.attackType));
             if(this.attackType === 'magic') AudioSys.sfx.spell(); else AudioSys.sfx.attack_range();
         } else {
@@ -1074,13 +1148,11 @@ class Unit {
     }
     move(game) {
         let targetIdx = -1;
-        
         if (this.team === 'player') {
             targetIdx = (game.playerFaction === 1) ? 0 : game.pathPixels.length - 1;
         } else {
             targetIdx = (game.playerFaction === 1) ? game.pathPixels.length - 1 : 0;
         }
-        
         if (this.pathIndex === targetIdx) return; 
         
         let nextIdx = this.pathIndex;
@@ -1101,40 +1173,42 @@ class Unit {
         const pos = camera.toScreen(this.x, this.y); 
         const s = pos.scale;
         
-        const scaleFactor = 2.0; // 放大倍率
         const bounceOffset = this.bounce * s;
 
-        // 腳底陰影 (稍微放大一點)
         ctx.fillStyle = "rgba(0,0,0,0.3)"; 
         ctx.beginPath();
-        // 原本 15, 8 -> 放大後 25, 12
         ctx.ellipse(pos.x, pos.y, 25 * s, 12 * s, 0, 0, Math.PI*2); 
         ctx.fill();
 
+        // Buff Glow
+        if (this.buffTimer > 0) {
+            ctx.shadowColor = "gold";
+            ctx.shadowBlur = 10;
+        }
+
         const img = ASSETS.images[this.imgKey];
         if (img) {
-            // 原本 size = 50 * s -> 放大到 100 * s
             const size = 100 * s; 
-            // 繪製圖片: x置中, y貼齊腳底 (pos.y)
             ctx.drawImage(img, pos.x - size/2, pos.y - size - bounceOffset, size, size);
         } else {
-            // Fallback
             ctx.fillStyle = this.team === 'player' ? 'blue' : 'red';
             ctx.beginPath(); ctx.arc(pos.x, pos.y - 20*s, 20*s, 0, Math.PI*2); ctx.fill();
         }
+        ctx.shadowBlur = 0; // Reset
 
-        // 血條 (位置往上移)
+        // 治療特效
+        if (this.typeKey === 'advisor' && this.attackCooldown > 60) {
+             // 施法動作(簡單閃爍)
+        }
+
         const hpPct = this.hp / this.maxHp; 
         const barY = pos.y - (115 * s) - bounceOffset;
-        
-        // 血條寬度也稍微放大
         const barW = 60 * s;
         const barH = 6 * s;
         const barX = pos.x - barW / 2;
 
         ctx.fillStyle = "#555"; 
         ctx.fillRect(barX, barY, barW, barH);
-        
         ctx.fillStyle = hpPct > 0.5 ? "#2ecc71" : "#e74c3c";
         ctx.fillRect(barX, barY, barW * hpPct, barH);
     }
@@ -1148,7 +1222,7 @@ class Projectile {
         
         if (target && target.type !== 'base') {
             this.tx = target.x;
-            this.ty = target.y - 50; // Adjusted for bigger units
+            this.ty = target.y - 50; 
         } else {
             let targetBaseIdx = 0;
             if (team === 'player') {
@@ -1169,7 +1243,7 @@ class Projectile {
         if (dist <= this.speed) {
             this.hit = true; Game.createEffect(this.tx, this.ty, 'hit'); AudioSys.sfx.hit();
             if (this.type === 'magic') {
-                const splashRange = 100; Game.createEffect(this.tx, this.ty, 'hit');
+                const splashRange = 120; Game.createEffect(this.tx, this.ty, 'hit');
                 if (this.target.type !== 'base') {
                     Game.units.forEach(u => {
                         if (u.team !== this.team && !u.dead) {
@@ -1186,8 +1260,13 @@ class Projectile {
     draw(ctx, camera) {
         const pos = camera.toScreen(this.x, this.y); const s = pos.scale;
         ctx.fillStyle = this.team === 'player' ? '#3498db' : '#e74c3c';
-        if (this.type === 'magic') ctx.fillStyle = '#9b59b6';
+        if (this.type === 'magic') {
+            ctx.fillStyle = '#9b59b6';
+            ctx.shadowColor = '#8e44ad';
+            ctx.shadowBlur = 10;
+        }
         ctx.beginPath(); ctx.arc(pos.x, pos.y, (this.type === 'magic' ? 8 : 5) * s, 0, Math.PI*2); ctx.fill();
+        ctx.shadowBlur = 0;
     }
 }
 
@@ -1216,8 +1295,15 @@ class Particle {
             ctx.strokeText(this.text, pos.x, pos.y);
             ctx.fillText(this.text, pos.x, pos.y);
         } else {
+            // Draw custom particle logic if needed
             ctx.fillStyle = this.color;
-            ctx.beginPath(); ctx.arc(pos.x, pos.y, 4 * s, 0, Math.PI*2); ctx.fill(); 
+            if(this.color === '#2ecc71') { // Heal cross
+                ctx.fillText("+", pos.x, pos.y);
+            } else if (this.color === '#f1c40f') { // Buff arrow
+                ctx.fillText("▲", pos.x, pos.y);
+            } else {
+                ctx.beginPath(); ctx.arc(pos.x, pos.y, 4 * s, 0, Math.PI*2); ctx.fill(); 
+            }
         }
         ctx.globalAlpha = 1;
     }
