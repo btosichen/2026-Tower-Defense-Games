@@ -206,6 +206,27 @@
             width: 40px; height: 40px; border-radius: 50%; border: 2px solid white;
             margin-right: 10px; background: #fff; object-fit: contain; box-shadow: 0 2px 5px rgba(0,0,0,0.3);
         }
+        @keyframes goldGlow {
+    0% { box-shadow:0 0 5px gold; }
+    50% { box-shadow:0 0 25px gold; }
+    100% { box-shadow:0 0 5px gold; }
+}
+
+@keyframes silverGlow {
+    0% { box-shadow:0 0 5px silver; }
+    50% { box-shadow:0 0 20px silver; }
+    100% { box-shadow:0 0 5px silver; }
+}
+
+@keyframes bronzeGlow {
+    0% { box-shadow:0 0 5px #cd7f32; }
+    50% { box-shadow:0 0 20px #cd7f32; }
+    100% { box-shadow:0 0 5px #cd7f32; }
+}
+
+.rank-1 { animation:goldGlow 1.5s infinite; background:#fff8dc; }
+.rank-2 { animation:silverGlow 1.8s infinite; background:#f8f9fa; }
+.rank-3 { animation:bronzeGlow 2s infinite; background:#fdf2e9; }
     </style>
 </head>
 <body>
@@ -232,6 +253,27 @@
                 <input type="text" id="player-name" placeholder="請輸入將軍大名" maxlength="10">
                 <br>
                 <button class="start-btn" onclick="Game.initLogin()">出征</button>
+                <hr style="margin:25px 0;">
+<h2 style="color:#d35400;">🏆 關卡最高排行榜</h2>
+
+<div id="ranking-box" style="
+    max-height:260px;
+    overflow-y:auto;
+    background:#fff;
+    border-radius:12px;
+    padding:10px;
+    text-align:left;
+    font-size:14px;
+    position:relative;
+">
+    讀取中...
+</div>
+
+<button class="start-btn"
+        style="margin-top:15px;background:#2980b9;box-shadow:0 5px 0 #1f618d;"
+        onclick="Game.loadRanking()">
+    🔄 重新整理排行榜
+</button>
                 <p id="loading-text" style="color: #e67e22; font-size: 14px; margin-top: 15px; font-weight: bold;">正在徵召兵馬...</p>
             </div>
         </div>
@@ -378,7 +420,7 @@ const SecureConfig = (function() {
 
 const CONFIG = {
     gridSize: 80, width: 15, height: 10,
-    gasUrl: 'https://script.google.com/macros/s/AKfycby68UjKc0HNZ18lzhXopQ5MBNVefvp39ARDfNYlqqoczxV2aKvurgIXNGTkIrBoO0Uq/exec'
+    gasUrl: 'https://script.google.com/macros/s/AKfycby4a9TylO3B1Y89t1_Gu8ci4uvpjoRjnh-Oob-pbS9AfWt9sXn173VwLDU52RANskpZ/exec'
 };
 
 const MAPS = [
@@ -1310,7 +1352,70 @@ class Particle {
 }
 
 const Game = new GameEngine();
+Game.loadRanking = function() {
 
+    const box = document.getElementById("ranking-box");
+    box.innerHTML = "讀取中...";
+
+    fetch(CONFIG.gasUrl + "?action=getRanking")
+        .then(res => res.json())
+        .then(data => {
+
+            if (!data || data.length === 0) {
+                box.innerHTML = "目前尚無戰績紀錄";
+                return;
+            }
+
+            // ⭐ 核心排序：先比最高關卡，再比總分
+            data.sort((a,b)=>{
+                if (b.level !== a.level) {
+                    return b.level - a.level;
+                }
+                return b.totalScore - a.totalScore;
+            });
+
+            let html = "";
+
+            data.slice(0,10).forEach((player,index)=>{
+
+                let medal = "";
+                let className = "";
+
+                if(index === 0){
+                    medal = "🥇";
+                    className = "rank-1";
+                }else if(index === 1){
+                    medal = "🥈";
+                    className = "rank-2";
+                }else if(index === 2){
+                    medal = "🥉";
+                    className = "rank-3";
+                }else{
+                    medal = `${index+1}.`;
+                }
+
+                html += `
+                    <div class="${className}" style="
+                        display:flex;
+                        justify-content:space-between;
+                        padding:8px 10px;
+                        border-radius:8px;
+                        margin-bottom:6px;
+                        transition:0.3s;
+                    ">
+                        <span>${medal} ${player.name}</span>
+                        <span>最高第${player.level}關 | ${player.totalScore}分</span>
+                    </div>
+                `;
+            });
+
+            box.innerHTML = html;
+
+        })
+        .catch(()=>{
+            box.innerHTML = "排行榜讀取失敗";
+        });
+};
 </script>
 </body>
 </html>
