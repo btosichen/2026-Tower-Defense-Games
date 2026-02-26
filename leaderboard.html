@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>三國策略攻防戰 - 英雄排行榜</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700;900&display=swap');
+        
+        body {
+            font-family: 'Noto Serif TC', serif;
+            background-color: #1a1a1a;
+            background-image: url('https://www.transparenttextures.com/patterns/stardust.png');
+            color: #f3f4f6;
+        }
+
+        .gold-gradient {
+            background: linear-gradient(to right, #bf953f, #fcf6ba, #b38728, #fbf5b7, #aa771c);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .border-gold {
+            border-image: linear-gradient(to bottom, #bf953f, #fcf6ba, #b38728) 1;
+            border-width: 2px;
+            border-style: solid;
+        }
+
+        .bg-wood {
+            background-color: #2c1e16;
+            background-image: url('https://www.transparenttextures.com/patterns/wood-pattern.png');
+        }
+        
+        /* 捲軸美化 */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1a1a1a; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #b38728; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #fcf6ba; 
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <!-- 主容器 -->
+    <div class="max-w-3xl w-full bg-wood border-gold p-8 shadow-2xl relative">
+        
+        <!-- 裝飾角落 -->
+        <div class="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-yellow-600 m-2"></div>
+        <div class="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-yellow-600 m-2"></div>
+        <div class="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-yellow-600 m-2"></div>
+        <div class="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-yellow-600 m-2"></div>
+
+        <!-- 標題 -->
+        <div class="text-center mb-8">
+            <h1 class="text-5xl font-black mb-2 tracking-widest gold-gradient">英雄榜</h1>
+            <p class="text-yellow-600/80 text-lg tracking-widest">三國策略攻防戰 - 威震天下</p>
+        </div>
+
+        <!-- 功能區塊 (測試用表單) -->
+        <div class="bg-black/50 p-4 mb-6 border border-yellow-800/50 flex flex-col md:flex-row gap-4 justify-between items-center">
+            <div class="flex gap-2 w-full md:w-auto">
+                <input type="text" id="playerName" placeholder="主公名諱 (例如: 常山趙子龍)" class="bg-gray-800 text-white px-4 py-2 border border-yellow-700 focus:outline-none focus:border-yellow-400 w-full md:w-64">
+                <input type="number" id="playerScore" placeholder="戰功 (分數)" class="bg-gray-800 text-white px-4 py-2 border border-yellow-700 focus:outline-none focus:border-yellow-400 w-full md:w-32">
+            </div>
+            <button onclick="submitScore()" class="w-full md:w-auto bg-gradient-to-r from-red-800 to-red-600 hover:from-red-600 hover:to-red-500 text-white font-bold py-2 px-6 border border-red-400 shadow-[0_0_10px_rgba(220,38,38,0.5)] transition-all">
+                <i class="fas fa-flag mr-2"></i>昭告天下 (上傳分數)
+            </button>
+        </div>
+
+        <!-- 排行榜狀態提示 -->
+        <div id="loading" class="text-center py-10 text-yellow-500">
+            <i class="fas fa-spinner fa-spin fa-3x mb-4"></i>
+            <p class="tracking-widest">探子正在傳回最新戰報...</p>
+        </div>
+
+        <!-- 排行榜列表 -->
+        <div class="overflow-hidden border border-yellow-800/50">
+            <table class="w-full text-left border-collapse" id="leaderboardTable" style="display: none;">
+                <thead>
+                    <tr class="bg-yellow-900/40 text-yellow-500 text-sm tracking-wider">
+                        <th class="p-4 border-b border-yellow-800/50 w-20 text-center">名次</th>
+                        <th class="p-4 border-b border-yellow-800/50">主公名諱</th>
+                        <th class="p-4 border-b border-yellow-800/50 text-right">戰功 (殺敵數)</th>
+                        <th class="p-4 border-b border-yellow-800/50 text-right hidden md:table-cell">建功時辰</th>
+                    </tr>
+                </thead>
+                <tbody id="leaderboardBody">
+                    <!-- JavaScript 將在這裡插入資料 -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 刷新按鈕 -->
+        <div class="mt-6 text-center">
+            <button onclick="fetchLeaderboard()" class="text-yellow-600 hover:text-yellow-400 transition-colors">
+                <i class="fas fa-sync-alt mr-1"></i> 刷新戰報
+            </button>
+        </div>
+    </div>
+
+    <!-- 通知彈窗 -->
+    <div id="toast" class="fixed bottom-5 right-5 bg-green-800 text-white px-6 py-3 rounded border border-green-500 shadow-lg transform translate-y-20 opacity-0 transition-all duration-300">
+        <i class="fas fa-check-circle mr-2"></i> <span id="toastMessage">操作成功</span>
+    </div>
+
+    <script>
+        // ==========================================
+        // 主公請注意！請將下方的 URL 替換為您部署的 Google Apps Script 網址
+        // ==========================================
+        const SCRIPT_URL = '請在這裡填入您的_Google_Apps_Script_網址'; 
+        
+        // 假資料 (當還沒設定 SCRIPT_URL 時顯示，方便您預覽介面)
+        const MOCK_DATA = [
+            { name: '呂布', score: 9999, date: '2023/10/25 14:30' },
+            { name: '關羽', score: 8500, date: '2023/10/25 15:10' },
+            { name: '張飛', score: 8200, date: '2023/10/25 11:20' },
+            { name: '趙雲', score: 7800, date: '2023/10/24 09:15' },
+            { name: '馬超', score: 7100, date: '2023/10/24 16:40' },
+        ];
+
+        // 顯示通知
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toastMessage');
+            
+            toast.className = `fixed bottom-5 right-5 px-6 py-3 rounded border shadow-lg transform transition-all duration-300 ${isError ? 'bg-red-800 border-red-500 text-white' : 'bg-green-800 border-green-500 text-white'}`;
+            toast.innerHTML = `<i class="fas ${isError ? 'fa-exclamation-triangle' : 'fa-check-circle'} mr-2"></i> ${message}`;
+            
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+
+        // 渲染排行榜表格
+        function renderTable(data) {
+            const tbody = document.getElementById('leaderboardBody');
+            tbody.innerHTML = '';
+
+            if(data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" class="p-8 text-center text-gray-400">尚無戰報，等待英雄崛起！</td></tr>`;
+                return;
+            }
+
+            data.forEach((row, index) => {
+                let rankStyle = '';
+                let rankIcon = index + 1;
+                
+                // 前三名特殊樣式
+                if (index === 0) {
+                    rankStyle = 'text-yellow-400 font-bold text-xl';
+                    rankIcon = '<i class="fas fa-crown text-yellow-400"></i>';
+                } else if (index === 1) {
+                    rankStyle = 'text-gray-300 font-bold text-lg';
+                    rankIcon = '<i class="fas fa-medal text-gray-300"></i>';
+                } else if (index === 2) {
+                    rankStyle = 'text-amber-700 font-bold text-lg';
+                    rankIcon = '<i class="fas fa-medal text-amber-700"></i>';
+                }
+
+                const tr = document.createElement('tr');
+                tr.className = 'border-b border-yellow-800/30 hover:bg-yellow-900/20 transition-colors';
+                tr.innerHTML = `
+                    <td class="p-4 text-center ${rankStyle}">${rankIcon}</td>
+                    <td class="p-4 font-bold text-yellow-100">${row.name}</td>
+                    <td class="p-4 text-right text-red-400 font-bold">${row.score.toLocaleString()}</td>
+                    <td class="p-4 text-right text-gray-500 text-sm hidden md:table-cell">${row.date || '未知'}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('leaderboardTable').style.display = 'table';
+        }
+
+        // 讀取排行榜資料
+        async function fetchLeaderboard() {
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('leaderboardTable').style.display = 'none';
+
+            if (SCRIPT_URL === '請在這裡填入您的_Google_Apps_Script_網址') {
+                // 若尚未設定 URL，顯示假資料演示
+                setTimeout(() => {
+                    renderTable(MOCK_DATA);
+                    showToast('目前顯示為展示用資料。請設定 GAS 網址！', true);
+                }, 1000);
+                return;
+            }
+
+            try {
+                const response = await fetch(SCRIPT_URL);
+                const data = await response.json();
+                renderTable(data);
+            } catch (error) {
+                console.error("讀取失敗:", error);
+                showToast("探子回報：無法取得戰報 (網路錯誤)", true);
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        // 上傳新分數
+        async function submitScore() {
+            const name = document.getElementById('playerName').value.trim();
+            const score = document.getElementById('playerScore').value;
+
+            if (!name || !score) {
+                showToast("主公，請填寫名諱與戰功！", true);
+                return;
+            }
+
+            if (SCRIPT_URL === 'https://script.google.com/macros/s/AKfycbzm7bnn7tg1Fc2C-FgLdrxha-bYwTj3behcOoIt-lpMcqsv6ZtfnUdDRSTHyKhwELvl/exec') {
+                showToast('請先設定 Google Apps Script 網址才能真實上傳！', true);
+                // 假裝成功並加入本地陣列
+                MOCK_DATA.push({ name: name, score: parseInt(score), date: new Date().toLocaleString('zh-TW') });
+                MOCK_DATA.sort((a, b) => b.score - a.score);
+                renderTable(MOCK_DATA);
+                return;
+            }
+
+            const btn = document.querySelector('button');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>上傳中...';
+            btn.disabled = true;
+
+            try {
+                // 使用 GET 參數方式傳遞，避免 CORS 問題，最適合新手
+                const uploadUrl = `${SCRIPT_URL}?action=add&name=${encodeURIComponent(name)}&score=${encodeURIComponent(score)}`;
+                const response = await fetch(uploadUrl);
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    showToast("捷報！主公的戰功已昭告天下！");
+                    document.getElementById('playerName').value = '';
+                    document.getElementById('playerScore').value = '';
+                    // 重新抓取最新排行榜
+                    fetchLeaderboard();
+                } else {
+                    showToast("上傳失敗，請稍後再試", true);
+                }
+            } catch (error) {
+                console.error("上傳失敗:", error);
+                showToast("上傳失敗 (網路錯誤)", true);
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        // 網頁載入時自動抓取排行榜
+        window.onload = fetchLeaderboard;
+    </script>
+</body>
+</html>
