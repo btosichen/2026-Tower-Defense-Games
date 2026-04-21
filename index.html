@@ -797,7 +797,7 @@ class GameEngine {
         const lvlData = levels[this.level];
         if (!this.isLevelTransitioning) {
             this.addGold(lvlData.goldRate * 0.5); 
-            if (this.#gold > 50000) { this.#gold = 50000; this.#updateChecksum(); }
+            if (this.#gold > 1000000) { this.#gold = 1000000; this.#updateChecksum(); }
         }
 
         this.enemySpawnTimer++;
